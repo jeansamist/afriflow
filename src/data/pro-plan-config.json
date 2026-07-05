@@ -1,0 +1,7 @@
+{
+  "_comment": "Pro plan config. Single price and single minute allowance for every supported number country (FR / US / CA / BE). priceEur is converted automatically to the payer's Mobile Money currency (CFA peg). premiumBonusMinutes is added on top for waitlist (early access) members.",
+  "priceEur": 21,
+  "cycleDays": 30,
+  "includedMinutes": 150,
+  "premiumBonusMinutes": 50
+}
