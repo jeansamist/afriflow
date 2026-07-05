@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import proPlanConfigJson from "@/data/pro-plan-config.json";
 
 type ProPlanConfig = {
   priceEur: number;
@@ -11,8 +10,7 @@ type ProPlanConfig = {
 };
 
 function loadProPlanConfig(): ProPlanConfig {
-  const raw = readFileSync(join(process.cwd(), "src/data/pro-plan-config.json"), "utf-8");
-  return JSON.parse(raw) as ProPlanConfig;
+  return proPlanConfigJson as ProPlanConfig;
 }
 
 /** Same allowance for every supported country; waitlist members get a bonus. */

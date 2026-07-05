@@ -1,16 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import waitlistJson from "@/data/premium-waitlist.json";
 
 function loadPremiumEmails(): Set<string> {
-  try {
-    const raw = readFileSync(join(process.cwd(), "src/data/premium-waitlist.json"), "utf-8");
-    const parsed = JSON.parse(raw) as { emails?: unknown };
-    if (!Array.isArray(parsed.emails)) return new Set();
-    return new Set((parsed.emails as unknown[]).filter((e): e is string => typeof e === "string").map((e) => e.toLowerCase().trim()));
-  } catch {
-    return new Set();
-  }
+  const emails = (waitlistJson as { emails?: unknown }).emails;
+  if (!Array.isArray(emails)) return new Set();
+  return new Set(emails.filter((e): e is string => typeof e === "string").map((e) => e.toLowerCase().trim()));
 }
 
 export const grantPremiumIfWaitlisted = createServerFn({ method: "POST" })
