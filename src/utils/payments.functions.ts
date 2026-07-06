@@ -37,9 +37,15 @@ export const createPaymentLink = createServerFn({ method: "POST" })
     const { convertAmount, payoutCurrencyForCountry, getRate } = await import("./fx.functions");
     const { data: profile } = await supabase
       .from("profiles")
-      .select("payout_currency, country_iso")
+      .select("payout_currency, country_iso, kyc_status")
       .eq("id", userId)
       .maybeSingle();
+
+    if ((profile?.kyc_status as string | null) !== "APPROVED")
+      throw new Error(
+        "Vérification d'identité requise : complétez votre KYC pour créer des liens de paiement.",
+      );
+
     const payoutCurrency =
       (profile?.payout_currency as string | null) ||
       payoutCurrencyForCountry(profile?.country_iso as string | null);

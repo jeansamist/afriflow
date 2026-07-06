@@ -48,6 +48,7 @@ function PaymentsPage() {
   const [clients, setClients] = useState<{ id: string; contact_name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [payoutCurrency, setPayoutCurrency] = useState<string>("XOF");
+  const [kycStatus, setKycStatus] = useState<string | null>(null);
   const [mmNumber, setMmNumber] = useState<string | null>(null);
   const [mmOperator, setMmOperator] = useState<string | null>(null);
   const [mmHolder, setMmHolder] = useState<string | null>(null);
@@ -69,8 +70,9 @@ function PaymentsPage() {
       const [r, c, p] = await Promise.all([listFn(), clientsFn(), profileFn()]);
       setRows(r as LinkRow[]);
       setClients(c as { id: string; contact_name: string }[]);
-      const pc = (p as { payout_currency?: string | null; mobile_money_number?: string | null; mobile_money_operator?: string | null; mobile_money_holder_name?: string | null } | null);
+      const pc = (p as { payout_currency?: string | null; mobile_money_number?: string | null; mobile_money_operator?: string | null; mobile_money_holder_name?: string | null; kyc_status?: string | null } | null);
       if (pc?.payout_currency) setPayoutCurrency(pc.payout_currency);
+      setKycStatus(pc?.kyc_status ?? null);
       setMmNumber(pc?.mobile_money_number ?? null);
       setMmOperator(pc?.mobile_money_operator ?? null);
       setMmHolder(pc?.mobile_money_holder_name ?? null);
@@ -160,6 +162,25 @@ function PaymentsPage() {
           <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">← Tableau de bord</Link>
         </div>
 
+        {!loading && kycStatus !== "APPROVED" && (
+          <Card className="p-5 mb-8 border-amber-500/30 bg-amber-500/5">
+            <div className="flex items-center gap-3 text-sm">
+              <span className="flex-1">
+                <span className="font-medium">Vérification d'identité requise.</span>{" "}
+                <span className="text-muted-foreground">
+                  La création de liens de paiement est débloquée une fois votre KYC validé
+                  {kycStatus === "PENDING_REVIEW" ? " (votre dossier est en cours d'examen)" : ""}.
+                </span>
+              </span>
+              <Link to="/kyc">
+                <Button size="sm" variant="outline">
+                  {kycStatus === "PENDING_REVIEW" ? "Suivre mon dossier" : "Faire mon KYC"}
+                </Button>
+              </Link>
+            </div>
+          </Card>
+        )}
+
         <Card className="p-6 mb-8 bg-card border-border">
           <form onSubmit={handleCreate} className="grid gap-4">
             <div className="grid gap-4 md:grid-cols-[1fr_120px_140px]">
@@ -237,7 +258,7 @@ function PaymentsPage() {
               </Select>
             </div>
 
-            <Button type="submit" disabled={submitting} className="md:w-fit md:ml-auto">
+            <Button type="submit" disabled={submitting || loading || kycStatus !== "APPROVED"} className="md:w-fit md:ml-auto">
               <Plus className="w-4 h-4 mr-1" /> {submitting ? "..." : "Générer le lien"}
             </Button>
           </form>

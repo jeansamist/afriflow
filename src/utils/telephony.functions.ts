@@ -141,6 +141,16 @@ export const recordSimulatedCall = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
+    if (data.direction === "OUTBOUND") {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("kyc_status")
+        .eq("id", userId)
+        .maybeSingle();
+      if ((profile?.kyc_status as string | null) !== "APPROVED")
+        throw new Error("Vérification d'identité requise : complétez votre KYC pour passer des appels.");
+    }
+
     const { data: allocation } = await supabase
       .from("phone_allocations")
       .select("e164")

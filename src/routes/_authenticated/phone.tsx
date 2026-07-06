@@ -86,6 +86,12 @@ function PhonePage() {
   // ── Call controls (device + call lifecycle live in VoiceProvider) ─────────
   const startOutbound = async () => {
     if (!allocation) return toast.error("Aucun numéro actif.");
+    if (!kycApproved) {
+      toast.error("Vérification d'identité requise pour passer des appels.", {
+        action: { label: "Faire mon KYC", onClick: () => navigate({ to: "/kyc" }) },
+      });
+      return;
+    }
     if (dial.length < 4) return toast.error("Entrez un numéro complet.");
     if (isRestricted) return toast.error("Compte restreint. Réactivez votre plan.");
     if (minutesLeft <= 0) { setTopUpOpen(true); return; }
@@ -209,6 +215,16 @@ function PhonePage() {
               </div>
             )}
 
+            {allocation && !kycApproved && !isRestricted && (
+              <div className="mt-3 flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs">
+                <ShieldAlert className="h-4 w-4 shrink-0 text-amber-400" />
+                <span className="flex-1 text-muted-foreground">
+                  Les appels sortants sont bloqués jusqu'à validation de votre identité. Vous pouvez recevoir des appels.
+                </span>
+                <Link to="/kyc"><Button size="sm" variant="outline">Faire mon KYC</Button></Link>
+              </div>
+            )}
+
             {/* Display + status */}
             <div className="mt-5 rounded-xl bg-background/60 px-4 py-5 text-center">
               <input
@@ -261,7 +277,7 @@ function PhonePage() {
                 <>
                   <Button
                     onClick={startOutbound}
-                    disabled={!allocation || dial.length < 4 || deviceStatus !== "ready"}
+                    disabled={!allocation || !kycApproved || dial.length < 4 || deviceStatus !== "ready"}
                     className="col-span-3 shadow-glow"
                   >
                     <PhoneOutgoing className="h-4 w-4" /> Appeler
