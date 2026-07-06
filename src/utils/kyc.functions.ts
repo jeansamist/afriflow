@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { OPERATOR_LABELS, operatorsForCountry } from "@/lib/countries";
 
 const PATH_RE = /^[0-9a-f-]{36}\/[a-z_]+-\d+\.[a-z0-9]+$/i;
 
@@ -29,6 +30,18 @@ export const submitKyc = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: profile } = await context.supabase
+      .from("profiles")
+      .select("country_iso")
+      .eq("id", userId)
+      .maybeSingle();
+    const allowedOps = operatorsForCountry((profile as { country_iso: string | null } | null)?.country_iso);
+    if (!(allowedOps as string[]).includes(data.mobileMoneyOperator)) {
+      const labels = allowedOps.map((op) => OPERATOR_LABELS[op]).join(", ");
+      throw new Error(`Opérateur non disponible dans votre pays. Choisissez parmi : ${labels}.`);
+    }
+
     const { error } = await supabaseAdmin
       .from("profiles")
       .update({
@@ -58,7 +71,7 @@ export const getKycStatus = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("profiles")
       .select(
-        "kyc_status, kyc_submitted_at, kyc_reviewed_at, kyc_rejection_reason, kyc_doc_id_front, kyc_doc_id_back, kyc_doc_selfie, kyc_doc_address, mobile_money_operator, mobile_money_number, mobile_money_holder_name",
+        "kyc_status, kyc_submitted_at, kyc_reviewed_at, kyc_rejection_reason, kyc_doc_id_front, kyc_doc_id_back, kyc_doc_selfie, kyc_doc_address, mobile_money_operator, mobile_money_number, mobile_money_holder_name, country_iso",
       )
       .eq("id", context.userId)
       .maybeSingle();

@@ -17,15 +17,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { grantPremiumIfWaitlisted } from "@/utils/waitlist.functions";
-
-const COUNTRIES = [
-  { iso: "CM", flag: "🇨🇲", name: "Cameroun" },
-  { iso: "SN", flag: "🇸🇳", name: "Sénégal" },
-  { iso: "BJ", flag: "🇧🇯", name: "Bénin" },
-  { iso: "CI", flag: "🇨🇮", name: "Côte d'Ivoire" },
-  { iso: "GA", flag: "🇬🇦", name: "Gabon" },
-  { iso: "ML", flag: "🇲🇱", name: "Mali" },
-] as const;
+import { SUPPORTED_COUNTRIES, SUPPORTED_COUNTRY_ISOS } from "@/lib/countries";
 
 const searchSchema = z.object({
   mode: z.enum(["signin", "signup"]).catch("signup"),
@@ -47,7 +39,7 @@ const signUpSchema = z.object({
   lastName: z.string().trim().min(1, "Nom requis").max(60),
   email: z.string().trim().email("Email invalide").max(255),
   password: z.string().min(8, "8 caractères minimum").max(72),
-  country: z.enum(["CM", "SN", "BJ", "CI", "GA", "ML"], { message: "Pays requis" }),
+  country: z.enum(SUPPORTED_COUNTRY_ISOS, { message: "Pays requis" }),
 });
 const signInSchema = z.object({
   email: z.string().trim().email("Email invalide"),
@@ -195,7 +187,7 @@ function AuthPage() {
                         <SelectValue placeholder="Sélectionnez votre pays" />
                       </SelectTrigger>
                       <SelectContent>
-                        {COUNTRIES.map((c) => (
+                        {SUPPORTED_COUNTRIES.map((c) => (
                           <SelectItem key={c.iso} value={c.iso}>
                             <span className="mr-2 text-base leading-none">{c.flag}</span> {c.name}
                           </SelectItem>

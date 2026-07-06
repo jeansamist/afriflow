@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { getKycStatus, submitKyc } from "@/utils/kyc.functions";
+import { OPERATOR_LABELS, operatorsForCountry } from "@/lib/countries";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/kyc")({
@@ -26,14 +27,6 @@ const DOCS: { key: DocKey; label: string; help: string; required: boolean }[] = 
   { key: "id_back", label: "Pièce d'identité (verso)", help: "Si applicable.", required: false },
   { key: "selfie", label: "Selfie avec votre pièce", help: "Visage et document bien visibles.", required: true },
   { key: "client_invoice", label: "Facture client (à l'étranger)", help: "PDF ou image d'une facture émise à un client basé hors de votre pays.", required: true },
-];
-
-const OPERATORS = [
-  { value: "ORANGE", label: "Orange Money" },
-  { value: "MTN", label: "MTN MoMo" },
-  { value: "WAVE", label: "Wave" },
-  { value: "MOOV", label: "Moov Money" },
-  { value: "AIRTEL", label: "Airtel Money" },
 ];
 
 function Kyc() {
@@ -52,9 +45,14 @@ function Kyc() {
   const [momoNum, setMomoNum] = useState<string>("");
   const [momoHolder, setMomoHolder] = useState<string>("");
 
+  const operators = operatorsForCountry(kyc?.country_iso);
+
   useEffect(() => {
     if (!kyc) return;
-    setMomoOp(kyc.mobile_money_operator ?? "");
+    const savedOp = kyc.mobile_money_operator ?? "";
+    // Ne pré-remplit pas un opérateur qui n'est plus proposé pour le pays du compte.
+    const allowed = operatorsForCountry(kyc.country_iso) as string[];
+    setMomoOp(allowed.includes(savedOp) ? savedOp : "");
     setMomoNum(kyc.mobile_money_number ?? "");
     setMomoHolder(kyc.mobile_money_holder_name ?? "");
     setUploaded({
@@ -212,7 +210,7 @@ function Kyc() {
                 <Select value={momoOp} onValueChange={setMomoOp} disabled={locked}>
                   <SelectTrigger><SelectValue placeholder="Choisir l'opérateur" /></SelectTrigger>
                   <SelectContent>
-                    {OPERATORS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                    {operators.map((op) => <SelectItem key={op} value={op}>{OPERATOR_LABELS[op]}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
