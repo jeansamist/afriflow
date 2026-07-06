@@ -2,18 +2,20 @@
  * Server-side helper to send a transactional email from a server function.
  * Renders a React Email template and enqueues it via the email pgmq pipeline.
  */
-import * as React from "react";
-import { render } from "@react-email/components";
 import { TEMPLATES } from "@/lib/email-templates/registry";
+import { render } from "@react-email/components";
+import * as React from "react";
 
 const SITE_NAME = "smooth-dev-stream";
-const SENDER_DOMAIN = "notify.armonik.online";
-const FROM_DOMAIN = "notify.armonik.online";
+const SENDER_DOMAIN = "notify.afriflow.tech";
+const FROM_DOMAIN = "notify.afriflow.tech";
 
 function generateToken(): string {
   const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);
-  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 export type SendAppEmailArgs = {
@@ -69,7 +71,10 @@ export async function sendAppEmail(args: SendAppEmailArgs) {
     unsubscribeToken = generateToken();
     await admin
       .from("email_unsubscribe_tokens")
-      .upsert({ token: unsubscribeToken, email: normalized }, { onConflict: "email", ignoreDuplicates: true });
+      .upsert(
+        { token: unsubscribeToken, email: normalized },
+        { onConflict: "email", ignoreDuplicates: true },
+      );
     const { data: stored } = await admin
       .from("email_unsubscribe_tokens")
       .select("token")

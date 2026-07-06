@@ -3,11 +3,11 @@
  * Auth emails (confirmation, reset password) are time-critical: they are sent
  * directly (no pgmq queue) and bypass the suppression/unsubscribe pipeline.
  */
-import * as React from "react";
 import { render } from "@react-email/components";
+import * as React from "react";
 import { Resend } from "resend";
 
-const DEFAULT_FROM = "AfriFlow <noreply@notify.armonik.online>";
+const DEFAULT_FROM = "AfriFlow <noreply@notify.afriflow.tech>";
 
 let _resend: Resend | undefined;
 
