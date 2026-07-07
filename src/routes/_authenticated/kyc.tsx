@@ -3,13 +3,24 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowLeft, ShieldCheck, UploadCloud, Loader2, CheckCircle2, AlertCircle, Clock, XCircle,
+  ArrowLeft,
+  ShieldCheck,
+  UploadCloud,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+  XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { getKycStatus, submitKyc } from "@/utils/kyc.functions";
@@ -23,10 +34,25 @@ export const Route = createFileRoute("/_authenticated/kyc")({
 
 type DocKey = "id_front" | "id_back" | "selfie" | "client_invoice";
 const DOCS: { key: DocKey; label: string; help: string; required: boolean }[] = [
-  { key: "id_front", label: "Pièce d'identité (recto)", help: "CNI, passeport ou permis.", required: true },
+  {
+    key: "id_front",
+    label: "Pièce d'identité (recto)",
+    help: "CNI, passeport ou permis.",
+    required: true,
+  },
   { key: "id_back", label: "Pièce d'identité (verso)", help: "Si applicable.", required: false },
-  { key: "selfie", label: "Selfie avec votre pièce", help: "Visage et document bien visibles.", required: true },
-  { key: "client_invoice", label: "Facture client (à l'étranger)", help: "PDF ou image d'une facture émise à un client basé hors de votre pays.", required: true },
+  {
+    key: "selfie",
+    label: "Selfie avec votre pièce",
+    help: "Visage et document bien visibles.",
+    required: true,
+  },
+  {
+    key: "client_invoice",
+    label: "Facture client (à l'étranger)",
+    help: "PDF ou image d'une facture émise à un client basé hors de votre pays.",
+    required: true,
+  },
 ];
 
 function Kyc() {
@@ -76,7 +102,8 @@ function Kyc() {
     const ext = file.name.split(".").pop()?.toLowerCase() ?? "bin";
     const path = `${user!.id}/${key}-${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from("kyc-documents").upload(path, file, {
-      upsert: true, contentType: file.type,
+      upsert: true,
+      contentType: file.type,
     });
     setBusy(null);
     if (error) return toast.error(error.message);
@@ -109,7 +136,8 @@ function Kyc() {
   });
 
   const submit = () => {
-    if (!uploaded.id_front || !uploaded.selfie) return toast.error("Pièce recto + selfie obligatoires.");
+    if (!uploaded.id_front || !uploaded.selfie)
+      return toast.error("Pièce recto + selfie obligatoires.");
     if (!uploaded.client_invoice) return toast.error("Facture client à l'étranger obligatoire.");
     if (!momoOp) return toast.error("Choisissez votre opérateur Mobile Money.");
     if (!/^\+?\d[\d\s-]{6,18}$/.test(momoNum)) return toast.error("Numéro Mobile Money invalide.");
@@ -120,7 +148,10 @@ function Kyc() {
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-3xl px-4 sm:px-6 py-6 sm:py-10">
-        <Link to="/dashboard" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          to="/dashboard"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="h-4 w-4" /> Retour au tableau de bord
         </Link>
 
@@ -132,7 +163,8 @@ function Kyc() {
             <div className="flex-1">
               <h1 className="text-xl font-semibold">Vérification d'identité</h1>
               <p className="text-sm text-muted-foreground">
-                Obligatoire pour les versements Mobile Money supérieurs à 200 € et pour activer définitivement votre numéro pro.
+                Obligatoire pour les versements Mobile Money supérieurs à 200 € et pour activer
+                définitivement votre numéro pro.
               </p>
             </div>
             <StatusBadge status={status} />
@@ -144,7 +176,9 @@ function Kyc() {
               <div>
                 <p className="font-medium text-destructive">Dossier refusé</p>
                 <p className="mt-1 text-muted-foreground">{kyc.kyc_rejection_reason}</p>
-                <p className="mt-1 text-xs text-muted-foreground">Corrigez les documents ci-dessous et renvoyez.</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Corrigez les documents ci-dessous et renvoyez.
+                </p>
               </div>
             </div>
           )}
@@ -175,9 +209,13 @@ function Kyc() {
                   className={`flex items-center gap-4 rounded-xl border border-dashed border-border bg-surface-elevated p-4 transition-colors ${locked ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-primary/50"}`}
                 >
                   <div className="grid h-10 w-10 place-items-center rounded-lg bg-background">
-                    {done ? <CheckCircle2 className="h-5 w-5 text-primary" /> :
-                      loading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> :
-                      <UploadCloud className="h-5 w-5 text-muted-foreground" />}
+                    {done ? (
+                      <CheckCircle2 className="h-5 w-5 text-primary" />
+                    ) : loading ? (
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    ) : (
+                      <UploadCloud className="h-5 w-5 text-muted-foreground" />
+                    )}
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-medium">
@@ -203,24 +241,42 @@ function Kyc() {
           </div>
 
           <div className="mt-8 space-y-3">
-            <h2 className="text-sm font-semibold text-muted-foreground">2 · Compte Mobile Money de réception</h2>
+            <h2 className="text-sm font-semibold text-muted-foreground">
+              2 · Compte Mobile Money de réception
+            </h2>
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <Label>Opérateur</Label>
                 <Select value={momoOp} onValueChange={setMomoOp} disabled={locked}>
-                  <SelectTrigger><SelectValue placeholder="Choisir l'opérateur" /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choisir l'opérateur" />
+                  </SelectTrigger>
                   <SelectContent>
-                    {operators.map((op) => <SelectItem key={op} value={op}>{OPERATOR_LABELS[op]}</SelectItem>)}
+                    {operators.map((op) => (
+                      <SelectItem key={op} value={op}>
+                        {OPERATOR_LABELS[op]}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div>
                 <Label>Numéro Mobile Money</Label>
-                <Input value={momoNum} onChange={(e) => setMomoNum(e.target.value)} placeholder="+221 77 000 00 00" disabled={locked} />
+                <Input
+                  value={momoNum}
+                  onChange={(e) => setMomoNum(e.target.value)}
+                  placeholder="+221 77 000 00 00"
+                  disabled={locked}
+                />
               </div>
               <div className="sm:col-span-2">
                 <Label>Titulaire du compte</Label>
-                <Input value={momoHolder} onChange={(e) => setMomoHolder(e.target.value)} placeholder="Nom complet" disabled={locked} />
+                <Input
+                  value={momoHolder}
+                  onChange={(e) => setMomoHolder(e.target.value)}
+                  placeholder="Nom complet"
+                  disabled={locked}
+                />
               </div>
             </div>
           </div>
@@ -230,12 +286,23 @@ function Kyc() {
               Vos documents sont chiffrés. Seule notre équipe vérification y a accès.
             </p>
             {!locked ? (
-              <Button onClick={submit} disabled={submitMut.isPending || isLoading} className="shadow-glow">
-                {submitMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> :
-                  status === "REJECTED" ? "Renvoyer le dossier" : "Envoyer pour vérification"}
+              <Button
+                onClick={submit}
+                disabled={submitMut.isPending || isLoading}
+                className="shadow-glow"
+              >
+                {submitMut.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : status === "REJECTED" ? (
+                  "Renvoyer le dossier"
+                ) : (
+                  "Envoyer pour vérification"
+                )}
               </Button>
             ) : (
-              <Link to="/dashboard"><Button variant="outline">Retour au dashboard</Button></Link>
+              <Link to="/dashboard">
+                <Button variant="outline">Retour au dashboard</Button>
+              </Link>
             )}
           </div>
         </div>
@@ -246,10 +313,26 @@ function Kyc() {
 
 function StatusBadge({ status }: { status: string }) {
   if (status === "APPROVED")
-    return <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300"><CheckCircle2 className="h-3 w-3" /> Vérifié</span>;
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">
+        <CheckCircle2 className="h-3 w-3" /> Vérifié
+      </span>
+    );
   if (status === "PENDING_REVIEW")
-    return <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-300"><Clock className="h-3 w-3" /> En revue</span>;
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs text-amber-300">
+        <Clock className="h-3 w-3" /> En revue
+      </span>
+    );
   if (status === "REJECTED")
-    return <span className="inline-flex items-center gap-1 rounded-full border border-destructive/30 bg-destructive/10 px-3 py-1 text-xs text-destructive"><XCircle className="h-3 w-3" /> Refusé</span>;
-  return <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background/50 px-3 py-1 text-xs text-muted-foreground">Non démarré</span>;
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-destructive/30 bg-destructive/10 px-3 py-1 text-xs text-destructive">
+        <XCircle className="h-3 w-3" /> Refusé
+      </span>
+    );
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background/50 px-3 py-1 text-xs text-muted-foreground">
+      Non démarré
+    </span>
+  );
 }

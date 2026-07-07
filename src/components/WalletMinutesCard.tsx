@@ -11,6 +11,7 @@ type WalletData = {
   isTrial: boolean;
   isRestricted: boolean;
   isActive: boolean;
+  needsPro?: boolean;
   trialDaysRemaining: number | null;
 };
 
@@ -29,22 +30,29 @@ export function WalletMinutesCard({
   const w = data.wallet;
   const includedCap = w.included_minutes;
   const includedRemain = data.includedMinutesRemaining;
-  const usedPct = Math.min(100, Math.round(((includedCap - includedRemain) / Math.max(1, includedCap)) * 100));
+  const usedPct = Math.min(
+    100,
+    Math.round(((includedCap - includedRemain) / Math.max(1, includedCap)) * 100),
+  );
   const totalRemain = data.totalMinutesRemaining;
-  // Top-up only shown for users who have (or had) an active subscription, not during trial
-  const showTopUp = includedRemain <= 20 && !data.isTrial;
-  const low = includedRemain <= 20;
-  const critical = includedRemain <= 5;
+  const needsPro = data.needsPro ?? false;
+  // Top-up requires all three: an active Pro plan, a running subscription
+  // cycle (isActive covers both) and a balance under 20 minutes.
+  const showTopUp = data.isActive && totalRemain < 20;
+  const low = !needsPro && includedRemain <= 20;
+  const critical = !needsPro && includedRemain <= 5;
 
   return (
-    <div className={`rounded-2xl border p-5 ${critical ? "border-destructive/40 bg-destructive/5" : low ? "border-amber-500/30 bg-amber-500/5" : "border-border bg-surface"}`}>
+    <div
+      className={`rounded-2xl border p-5 ${critical ? "border-destructive/40 bg-destructive/5" : low ? "border-amber-500/30 bg-amber-500/5" : "border-border bg-surface"}`}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Timer className="h-3.5 w-3.5" /> Minutes d'appel
         </div>
         {data.isTrial && (
           <Badge variant="outline" className="border-primary/40 text-primary">
-            Essai · J{(data.trialDaysRemaining ?? 0)}/7
+            Essai · J{data.trialDaysRemaining ?? 0}/7
           </Badge>
         )}
         {data.isActive && (
@@ -52,22 +60,32 @@ export function WalletMinutesCard({
             <Crown className="mr-1 h-3 w-3" /> Plan {w.plan_name}
           </Badge>
         )}
-        {data.isRestricted && (
+        {data.isRestricted && !needsPro && (
           <Badge variant="outline" className="border-destructive/40 text-destructive">
             Compte restreint
           </Badge>
         )}
+        {needsPro && (
+          <Badge variant="outline" className="border-primary/40 text-primary">
+            <Crown className="mr-1 h-3 w-3" /> Plan Pro requis
+          </Badge>
+        )}
       </div>
 
-      <p className={`mt-2 text-3xl font-bold ${critical ? "text-destructive" : low ? "text-amber-600" : ""}`}>
-        {totalRemain}<span className="ml-1 text-sm font-normal text-muted-foreground">min restantes</span>
+      <p
+        className={`mt-2 text-3xl font-bold ${critical ? "text-destructive" : low ? "text-amber-600" : ""}`}
+      >
+        {totalRemain}
+        <span className="ml-1 text-sm font-normal text-muted-foreground">min restantes</span>
       </p>
 
       <div className="mt-3 space-y-2">
         <div>
           <div className="flex items-center justify-between text-[11px] text-muted-foreground">
             <span>Incluses (cycle)</span>
-            <span>{includedRemain}/{includedCap} min</span>
+            <span>
+              {includedRemain}/{includedCap} min
+            </span>
           </div>
           <Progress value={usedPct} className="mt-1 h-1.5" />
         </div>
@@ -79,6 +97,11 @@ export function WalletMinutesCard({
         </div>
       </div>
 
+      {needsPro && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          Vos {includedRemain} minutes offertes seront débloquées dès votre passage au plan Pro.
+        </p>
+      )}
       {low && (
         <p className={`mt-3 text-xs ${critical ? "text-destructive" : "text-amber-600"}`}>
           {critical

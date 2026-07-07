@@ -2,17 +2,33 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Crown, Loader2, CheckCircle2, Smartphone, ArrowLeft, ShieldCheck, AlertTriangle, Phone,
+  Crown,
+  Loader2,
+  CheckCircle2,
+  Smartphone,
+  ArrowLeft,
+  ShieldCheck,
+  AlertTriangle,
+  Phone,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
   getProPlanOffer,
@@ -57,7 +73,12 @@ function approxLocal(priceEur: number, currency: string): string {
 type Step = "offer" | "phone" | "processing" | "success";
 
 export function ProSubscribeDialog({
-  open, onOpenChange, kycStatus, mobileMoneyNumber, mobileMoneyOperator, payoutCurrency,
+  open,
+  onOpenChange,
+  kycStatus,
+  mobileMoneyNumber,
+  mobileMoneyOperator,
+  payoutCurrency,
 }: Props) {
   const qc = useQueryClient();
   const getOfferFn = useServerFn(getProPlanOffer);
@@ -67,8 +88,11 @@ export function ProSubscribeDialog({
 
   const [step, setStep] = useState<Step>("offer");
   const [phone, setPhone] = useState(mobileMoneyNumber ?? "");
-  const [paymentMethod, setPaymentMethod] = useState<"mtn_mobile_money" | "orange_money">(defaultMethod(mobileMoneyOperator));
+  const [paymentMethod, setPaymentMethod] = useState<"mtn_mobile_money" | "orange_money">(
+    defaultMethod(mobileMoneyOperator),
+  );
   const [transactionId, setTransactionId] = useState<string | null>(null);
+  const [numberPending, setNumberPending] = useState(false);
 
   const currency = (payoutCurrency || "XOF").toUpperCase();
   const kycApproved = kycStatus === "APPROVED";
@@ -79,6 +103,7 @@ export function ProSubscribeDialog({
       setPhone(mobileMoneyNumber ?? "");
       setPaymentMethod(defaultMethod(mobileMoneyOperator));
       setTransactionId(null);
+      setNumberPending(false);
     }
   }, [open, mobileMoneyNumber, mobileMoneyOperator]);
 
@@ -112,9 +137,11 @@ export function ProSubscribeDialog({
 
   const finalizeMut = useMutation({
     mutationFn: () => finalizeFn({ data: { transactionId: transactionId! } }),
-    onSuccess: () => {
+    onSuccess: (res) => {
+      setNumberPending((res as { numberPending?: boolean })?.numberPending === true);
       qc.invalidateQueries({ queryKey: ["phone-wallet"] });
       qc.invalidateQueries({ queryKey: ["minute-tx"] });
+      qc.invalidateQueries({ queryKey: ["phone-state"] });
       setStep("success");
     },
     onError: (e: Error) => {
@@ -141,7 +168,6 @@ export function ProSubscribeDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
-
         {/* ── Step: offer ── */}
         {step === "offer" && (
           <>
@@ -160,9 +186,9 @@ export function ProSubscribeDialog({
                 {offer ? (
                   <span className="text-2xl font-bold">
                     {offer.includedMinutes}
-                    {offer.isPremium && (
+                    {!offer.isPremium && offer.trialMinutes > 0 && (
                       <span className="ml-2 text-xs font-normal text-primary">
-                        +{offer.premiumBonusMinutes} early access
+                        dont {offer.trialMinutes} min d'essai offertes
                       </span>
                     )}
                   </span>
@@ -179,7 +205,8 @@ export function ProSubscribeDialog({
                 <span className="font-semibold">{offer?.cycleDays ?? 30} jours</span>
               </div>
               <p className="text-[11px] text-muted-foreground pt-1 border-t border-border/50">
-                Renouvellement manuel · les minutes incluses non utilisées n'expirent pas entre les cycles.
+                Renouvellement manuel · les minutes incluses non utilisées n'expirent pas entre les
+                cycles.
               </p>
             </div>
 
@@ -189,7 +216,8 @@ export function ProSubscribeDialog({
                   <Phone className="h-4 w-4 shrink-0" /> Numéro professionnel requis
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Choisissez d'abord un numéro professionnel (France, Belgique, Canada ou USA) — il est inclus dans votre plan.
+                  Choisissez d'abord un numéro professionnel (France, Belgique, Canada ou USA) — il
+                  est inclus dans votre plan.
                 </p>
                 <Link to="/onboarding/phone">
                   <Button size="sm" variant="outline" className="w-full mt-1">
@@ -211,14 +239,18 @@ export function ProSubscribeDialog({
                 <Link to="/kyc">
                   <Button size="sm" variant="outline" className="w-full mt-1">
                     <ShieldCheck className="h-4 w-4" />
-                    {kycStatus === "PENDING_REVIEW" ? "Suivre mon dossier" : "Compléter la vérification"}
+                    {kycStatus === "PENDING_REVIEW"
+                      ? "Suivre mon dossier"
+                      : "Compléter la vérification"}
                   </Button>
                 </Link>
               </div>
             )}
 
             <DialogFooter>
-              <Button variant="ghost" onClick={() => onOpenChange(false)}>Plus tard</Button>
+              <Button variant="ghost" onClick={() => onOpenChange(false)}>
+                Plus tard
+              </Button>
               <Button
                 onClick={() => setStep("phone")}
                 disabled={!kycApproved || !offer || !offer.hasPhoneNumber}
@@ -265,7 +297,9 @@ export function ProSubscribeDialog({
                   </SelectTrigger>
                   <SelectContent>
                     {ELGIO_METHODS.map((m) => (
-                      <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                      <SelectItem key={m.value} value={m.value}>
+                        {m.label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -274,7 +308,9 @@ export function ProSubscribeDialog({
               <div className="rounded-xl border border-border bg-surface-elevated p-4 text-sm space-y-1">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Plan</span>
-                  <span className="font-semibold">Pro · {offer?.includedMinutes ?? "…"} min / mois</span>
+                  <span className="font-semibold">
+                    Pro · {offer?.includedMinutes ?? "…"} min / mois
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Montant à débiter</span>
@@ -293,12 +329,16 @@ export function ProSubscribeDialog({
               </Button>
               <Button
                 onClick={() => initiateMut.mutate()}
-                disabled={initiateMut.isPending || !phone.trim() || phone.replace(/\D/g, "").length < 8}
+                disabled={
+                  initiateMut.isPending || !phone.trim() || phone.replace(/\D/g, "").length < 8
+                }
                 className="shadow-glow"
               >
-                {initiateMut.isPending
-                  ? <Loader2 className="h-4 w-4 animate-spin" />
-                  : "Confirmer le paiement"}
+                {initiateMut.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Confirmer le paiement"
+                )}
               </Button>
             </DialogFooter>
           </>
@@ -316,7 +356,13 @@ export function ProSubscribeDialog({
                     L'opérateur n'a pas pu traiter votre demande.
                   </p>
                 </div>
-                <Button variant="outline" onClick={() => { setTransactionId(null); setStep("phone"); }}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setTransactionId(null);
+                    setStep("phone");
+                  }}
+                >
                   Réessayer
                 </Button>
               </>
@@ -342,7 +388,9 @@ export function ProSubscribeDialog({
                 <CheckCircle2 className="h-5 w-5" /> Plan Pro activé !
               </DialogTitle>
               <DialogDescription>
-                Votre abonnement est actif. Vos minutes sont disponibles immédiatement.
+                {numberPending
+                  ? "Votre abonnement est actif et vos minutes sont disponibles. L'activation de votre numéro réservé est en cours — elle sera finalisée très prochainement."
+                  : "Votre abonnement est actif. Vos minutes sont disponibles immédiatement."}
               </DialogDescription>
             </DialogHeader>
 
@@ -368,7 +416,6 @@ export function ProSubscribeDialog({
             </DialogFooter>
           </>
         )}
-
       </DialogContent>
     </Dialog>
   );

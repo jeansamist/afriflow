@@ -7,8 +7,8 @@ import { render } from "@react-email/components";
 import * as React from "react";
 
 const SITE_NAME = "smooth-dev-stream";
-const SENDER_DOMAIN = "notify.afriflow.tech";
-const FROM_DOMAIN = "notify.afriflow.tech";
+const SENDER_DOMAIN = "afriflow.tech";
+const FROM_DOMAIN = "afriflow.tech";
 
 function generateToken(): string {
   const bytes = new Uint8Array(32);

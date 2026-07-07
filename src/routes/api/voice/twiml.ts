@@ -10,9 +10,9 @@ export const Route = createFileRoute("/api/voice/twiml")({
         // on formData() — Twilio may send charset or other parameters that break it.
         const text = await request.text();
         const params = new URLSearchParams(text);
-        const to       = params.get("To");
+        const to = params.get("To");
         const callerId = params.get("callerId");
-        const from     = params.get("From"); // "client:<userId>" for browser-originated calls
+        const from = params.get("From"); // "client:<userId>" for browser-originated calls
 
         // Outbound calls are reserved for KYC-approved accounts.
         const identity = from?.startsWith("client:") ? from.slice("client:".length) : null;

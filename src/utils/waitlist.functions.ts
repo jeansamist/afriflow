@@ -4,7 +4,9 @@ import waitlistJson from "@/data/premium-waitlist.json";
 function loadPremiumEmails(): Set<string> {
   const emails = (waitlistJson as { emails?: unknown }).emails;
   if (!Array.isArray(emails)) return new Set();
-  return new Set(emails.filter((e): e is string => typeof e === "string").map((e) => e.toLowerCase().trim()));
+  return new Set(
+    emails.filter((e): e is string => typeof e === "string").map((e) => e.toLowerCase().trim()),
+  );
 }
 
 export const grantPremiumIfWaitlisted = createServerFn({ method: "POST" })
@@ -19,7 +21,9 @@ export const grantPremiumIfWaitlisted = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: userRes } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
-    const user = (userRes?.users ?? []).find((u) => u.email?.toLowerCase() === data.email.toLowerCase().trim());
+    const user = (userRes?.users ?? []).find(
+      (u) => u.email?.toLowerCase() === data.email.toLowerCase().trim(),
+    );
     if (!user) return { granted: false };
 
     const { error } = await supabaseAdmin

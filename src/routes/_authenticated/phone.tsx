@@ -4,8 +4,20 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import {
-  ArrowLeft, Phone, PhoneIncoming, PhoneOutgoing, PhoneOff, Mic, MicOff,
-  Loader2, Delete, PhoneCall, ShieldAlert, UserPlus, Wifi, WifiOff,
+  ArrowLeft,
+  Phone,
+  PhoneIncoming,
+  PhoneOutgoing,
+  PhoneOff,
+  Mic,
+  MicOff,
+  Loader2,
+  Delete,
+  PhoneCall,
+  ShieldAlert,
+  UserPlus,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -16,6 +28,7 @@ import { getDashboardData } from "@/utils/dashboard.functions";
 import { getPhoneWallet, subscribePro } from "@/utils/wallet.functions";
 import { useVoice } from "@/components/VoiceProvider";
 import { TopUpDialog } from "@/components/TopUpDialog";
+import { ProSubscribeDialog } from "@/components/ProSubscribeDialog";
 
 export const Route = createFileRoute("/_authenticated/phone")({
   head: () => ({ meta: [{ title: "Cabine téléphonique · AfriFlow" }] }),
@@ -41,46 +54,60 @@ const COUNTRIES: Record<string, { flag: string; name: string }> = {
 function PhonePage() {
   const search = Route.useSearch();
   const qc = useQueryClient();
-  const fetchState    = useServerFn(getMyPhoneState);
-  const fetchDash     = useServerFn(getDashboardData);
-  const fetchWallet   = useServerFn(getPhoneWallet);
-  const subscribeFn   = useServerFn(subscribePro);
+  const fetchState = useServerFn(getMyPhoneState);
+  const fetchDash = useServerFn(getDashboardData);
+  const fetchWallet = useServerFn(getPhoneWallet);
+  const subscribeFn = useServerFn(subscribePro);
 
-  const dashQ   = useQuery({ queryKey: ["dashboard"],    queryFn: () => fetchDash() });
-  const stateQ  = useQuery({ queryKey: ["phone-state"],  queryFn: () => fetchState() });
+  const dashQ = useQuery({ queryKey: ["dashboard"], queryFn: () => fetchDash() });
+  const stateQ = useQuery({ queryKey: ["phone-state"], queryFn: () => fetchState() });
   const walletQ = useQuery({ queryKey: ["phone-wallet"], queryFn: () => fetchWallet() });
 
-  const kycApproved  = dashQ.data?.profile?.kyc_status === "APPROVED";
-  const isTrial      = walletQ.data?.isTrial ?? false;
+  const kycApproved = dashQ.data?.profile?.kyc_status === "APPROVED";
+  const isPremium = dashQ.data?.profile?.is_premium ?? false;
+  const isTrial = walletQ.data?.isTrial ?? false;
   const isRestricted = walletQ.data?.isRestricted ?? false;
-  const minutesLeft  = walletQ.data?.totalMinutesRemaining ?? 0;
+  const needsPro = walletQ.data?.needsPro ?? false;
+  const minutesLeft = walletQ.data?.totalMinutesRemaining ?? 0;
   const navigate = useNavigate();
   const [topUpOpen, setTopUpOpen] = useState(false);
+  const [proOpen, setProOpen] = useState(false);
 
   // ── App-wide Twilio Device (see VoiceProvider) ────────────────────────────
   const {
-    deviceStatus, status, elapsed, muted, incomingFrom,
-    connect, hangUp, acceptIncoming, declineIncoming, toggleMute,
+    deviceStatus,
+    status,
+    elapsed,
+    muted,
+    incomingFrom,
+    connect,
+    hangUp,
+    acceptIncoming,
+    declineIncoming,
+    toggleMute,
   } = useVoice();
 
   const [dial, setDial] = useState("");
 
   const allocation = stateQ.data?.allocation;
-  const logs       = stateQ.data?.logs ?? [];
+  const logs = stateQ.data?.logs ?? [];
   const [logFilter, setLogFilter] = useState<"all" | "in" | "out">("all");
   const filteredLogs = useMemo(
-    () => logs.filter((l) =>
-      logFilter === "all" ? true :
-      logFilter === "in"  ? l.direction === "INBOUND" :
-                            l.direction === "OUTBOUND",
-    ),
+    () =>
+      logs.filter((l) =>
+        logFilter === "all"
+          ? true
+          : logFilter === "in"
+            ? l.direction === "INBOUND"
+            : l.direction === "OUTBOUND",
+      ),
     [logs, logFilter],
   );
 
   // Prefill from ?dial=
   useEffect(() => {
     if (search.dial && !dial) setDial(search.dial);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.dial]);
 
   // ── Call controls (device + call lifecycle live in VoiceProvider) ─────────
@@ -93,8 +120,18 @@ function PhonePage() {
       return;
     }
     if (dial.length < 4) return toast.error("Entrez un numéro complet.");
+    if (needsPro) {
+      toast.error("Vos minutes seront débloquées avec le plan Pro.", {
+        action: { label: "Activer Pro", onClick: () => setProOpen(true) },
+      });
+      return;
+    }
     if (isRestricted) return toast.error("Compte restreint. Réactivez votre plan.");
-    if (minutesLeft <= 0) { setTopUpOpen(true); return; }
+    if (minutesLeft <= 0) {
+      if (walletQ.data?.isActive) setTopUpOpen(true);
+      else toast.error("Plus de minutes disponibles. Réactivez votre plan Pro.");
+      return;
+    }
     if (deviceStatus !== "ready") return toast.error("Ligne non prête. Patientez…");
 
     try {
@@ -124,24 +161,41 @@ function PhonePage() {
   const PAGE_SIZE = 10;
   const totalPages = Math.max(1, Math.ceil(filteredLogs.length / PAGE_SIZE));
   const pagedLogs = filteredLogs.slice((logPage - 1) * PAGE_SIZE, logPage * PAGE_SIZE);
-  useEffect(() => { setLogPage(1); }, [logFilter]);
-  useEffect(() => { if (logPage > totalPages) setLogPage(totalPages); }, [logPage, totalPages]);
+  useEffect(() => {
+    setLogPage(1);
+  }, [logFilter]);
+  useEffect(() => {
+    if (logPage > totalPages) setLogPage(totalPages);
+  }, [logPage, totalPages]);
 
   const statusLabel = useMemo(() => {
     switch (status) {
-      case "dialing":  return "Appel en cours…";
-      case "ringing":  return "Sonnerie chez votre correspondant…";
-      case "in-call":  return formatDuration(elapsed);
-      case "ended":    return "Appel terminé";
-      case "incoming": return `Appel entrant · ${incomingFrom}`;
-      default:         return deviceStatus === "ready" ? "Prêt à appeler" : deviceStatus === "connecting" ? "Connexion…" : "Hors ligne";
+      case "dialing":
+        return "Appel en cours…";
+      case "ringing":
+        return "Sonnerie chez votre correspondant…";
+      case "in-call":
+        return formatDuration(elapsed);
+      case "ended":
+        return "Appel terminé";
+      case "incoming":
+        return `Appel entrant · ${incomingFrom}`;
+      default:
+        return deviceStatus === "ready"
+          ? "Prêt à appeler"
+          : deviceStatus === "connecting"
+            ? "Connexion…"
+            : "Hors ligne";
     }
   }, [status, elapsed, incomingFrom, deviceStatus]);
 
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-10">
-        <Link to="/dashboard" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          to="/dashboard"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="h-4 w-4" /> Retour au tableau de bord
         </Link>
 
@@ -161,46 +215,117 @@ function PhonePage() {
               <Badge
                 variant="outline"
                 className={
-                  deviceStatus === "ready"      ? "border-green-500/40 text-green-400" :
-                  deviceStatus === "connecting"  ? "border-primary/40 text-primary" :
-                  deviceStatus === "error"       ? "border-destructive/40 text-destructive" :
-                                                   "border-border text-muted-foreground"
+                  deviceStatus === "ready"
+                    ? "border-green-500/40 text-green-400"
+                    : deviceStatus === "connecting"
+                      ? "border-primary/40 text-primary"
+                      : deviceStatus === "error"
+                        ? "border-destructive/40 text-destructive"
+                        : "border-border text-muted-foreground"
                 }
               >
-                {deviceStatus === "ready"      ? <><Wifi className="mr-1 h-3 w-3" />En ligne</> :
-                 deviceStatus === "connecting"  ? <><Loader2 className="mr-1 h-3 w-3 animate-spin" />Connexion…</> :
-                 deviceStatus === "error"       ? <><WifiOff className="mr-1 h-3 w-3" />Erreur</> :
-                                                  <><WifiOff className="mr-1 h-3 w-3" />Hors ligne</>}
+                {deviceStatus === "ready" ? (
+                  <>
+                    <Wifi className="mr-1 h-3 w-3" />
+                    En ligne
+                  </>
+                ) : deviceStatus === "connecting" ? (
+                  <>
+                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                    Connexion…
+                  </>
+                ) : deviceStatus === "error" ? (
+                  <>
+                    <WifiOff className="mr-1 h-3 w-3" />
+                    Erreur
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="mr-1 h-3 w-3" />
+                    Hors ligne
+                  </>
+                )}
               </Badge>
             </div>
 
-            {isRestricted ? (
+            {needsPro ? (
+              <div className="mt-6 rounded-xl border border-primary/30 bg-primary/5 p-5 text-center">
+                <ShieldAlert className="mx-auto h-6 w-6 text-primary" />
+                <p className="mt-2 text-sm font-medium">Plan Pro requis</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Activez le plan Pro pour débloquer vos minutes d'appel — vos 10 minutes offertes y
+                  sont incluses.
+                </p>
+                {stateQ.data?.reserved && (
+                  <p className="mt-2 font-mono text-sm font-semibold tracking-wide">
+                    {stateQ.data.reserved.e164}
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">
+                      réservé pour vous
+                    </span>
+                  </p>
+                )}
+                <Button className="mt-4 shadow-glow" onClick={() => setProOpen(true)}>
+                  Activer le plan Pro
+                </Button>
+              </div>
+            ) : isRestricted ? (
               <div className="mt-6 rounded-xl border border-destructive/30 bg-destructive/5 p-5 text-center">
                 <ShieldAlert className="mx-auto h-6 w-6 text-destructive" />
                 <p className="mt-2 text-sm font-medium">Compte restreint</p>
-                <p className="mt-1 text-xs text-muted-foreground">Votre essai est terminé. Réactivez votre numéro.</p>
-                <Button className="mt-4 shadow-glow" onClick={() => subscribeMut.mutate()} disabled={subscribeMut.isPending}>
-                  {subscribeMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Réactiver mon numéro"}
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Votre essai est terminé. Réactivez votre numéro.
+                </p>
+                <Button
+                  className="mt-4 shadow-glow"
+                  onClick={() => subscribeMut.mutate()}
+                  disabled={subscribeMut.isPending}
+                >
+                  {subscribeMut.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Réactiver mon numéro"
+                  )}
                 </Button>
               </div>
             ) : !isTrial && !kycApproved ? (
               <div className="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/5 p-5 text-center">
                 <ShieldAlert className="mx-auto h-6 w-6 text-amber-400" />
                 <p className="mt-2 text-sm font-medium">Vérification d'identité requise</p>
-                <p className="mt-1 text-xs text-muted-foreground">L'attribution d'un numéro est débloquée une fois votre KYC validé.</p>
-                <Link to="/dashboard"><Button className="mt-4" variant="outline">Aller au KYC</Button></Link>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  L'attribution d'un numéro est débloquée une fois votre KYC validé.
+                </p>
+                <Link to="/dashboard">
+                  <Button className="mt-4" variant="outline">
+                    Aller au KYC
+                  </Button>
+                </Link>
               </div>
             ) : !allocation ? (
               <div className="mt-6 rounded-xl border border-dashed border-border bg-surface-elevated p-5 text-center">
                 <p className="text-sm font-medium">Aucun numéro attribué</p>
-                <p className="mt-1 text-xs text-muted-foreground">Choisissez votre pays et activez votre numéro local en 3 étapes.</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Choisissez votre pays et activez votre numéro local en 3 étapes.
+                </p>
                 <ul className="mt-3 space-y-1 text-left text-xs text-muted-foreground inline-block">
-                  <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-primary" /> Numéro local FR / BE / US / CA</li>
-                  <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-primary" /> 10 minutes d'essai offertes</li>
-                  <li className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-primary" /> Activation immédiate</li>
+                  <li className="flex items-center gap-2">
+                    <span className="h-1 w-1 rounded-full bg-primary" /> Numéro local FR / BE / US /
+                    CA
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="h-1 w-1 rounded-full bg-primary" />{" "}
+                    {isPremium
+                      ? "10 minutes d'essai offertes"
+                      : "10 minutes offertes avec le plan Pro"}
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="h-1 w-1 rounded-full bg-primary" /> Activation immédiate
+                  </li>
                 </ul>
                 <div className="mt-4">
-                  <Button className="shadow-glow" onClick={() => navigate({ to: "/onboarding/phone" })}>
+                  <Button
+                    className="shadow-glow"
+                    onClick={() => navigate({ to: "/onboarding/phone" })}
+                  >
                     Activer mon numéro
                   </Button>
                 </div>
@@ -208,10 +333,14 @@ function PhonePage() {
             ) : (
               <div className="mt-6 flex items-center justify-between rounded-xl border border-border bg-surface-elevated px-4 py-3">
                 <div>
-                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Numéro actif</p>
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    Numéro actif
+                  </p>
                   <p className="font-mono text-lg font-semibold tracking-wide">{allocation.e164}</p>
                 </div>
-                <span className="text-2xl" aria-hidden>{COUNTRIES[allocation.country_iso]?.flag ?? "🌍"}</span>
+                <span className="text-2xl" aria-hidden>
+                  {COUNTRIES[allocation.country_iso]?.flag ?? "🌍"}
+                </span>
               </div>
             )}
 
@@ -219,9 +348,14 @@ function PhonePage() {
               <div className="mt-3 flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs">
                 <ShieldAlert className="h-4 w-4 shrink-0 text-amber-400" />
                 <span className="flex-1 text-muted-foreground">
-                  Les appels sortants sont bloqués jusqu'à validation de votre identité. Vous pouvez recevoir des appels.
+                  Les appels sortants sont bloqués jusqu'à validation de votre identité. Vous pouvez
+                  recevoir des appels.
                 </span>
-                <Link to="/kyc"><Button size="sm" variant="outline">Faire mon KYC</Button></Link>
+                <Link to="/kyc">
+                  <Button size="sm" variant="outline">
+                    Faire mon KYC
+                  </Button>
+                </Link>
               </div>
             )}
 
@@ -243,14 +377,16 @@ function PhonePage() {
                 }}
                 className="w-full bg-transparent text-center font-mono text-2xl font-semibold tracking-wider text-foreground outline-none placeholder:text-muted-foreground/40 disabled:opacity-60"
               />
-              <p className={`mt-1 text-xs ${status === "in-call" ? "text-primary" : "text-muted-foreground"}`}>
+              <p
+                className={`mt-1 text-xs ${status === "in-call" ? "text-primary" : "text-muted-foreground"}`}
+              >
                 {statusLabel}
               </p>
             </div>
 
             {/* Keypad */}
             <div className="mt-4 grid grid-cols-3 gap-2">
-              {["1","2","3","4","5","6","7","8","9","+","0","del"].map((k) => (
+              {["1", "2", "3", "4", "5", "6", "7", "8", "9", "+", "0", "del"].map((k) => (
                 <button
                   key={k}
                   onClick={() => pressKey(k)}
@@ -277,7 +413,13 @@ function PhonePage() {
                 <>
                   <Button
                     onClick={startOutbound}
-                    disabled={!allocation || !kycApproved || dial.length < 4 || deviceStatus !== "ready"}
+                    disabled={
+                      !allocation ||
+                      !kycApproved ||
+                      needsPro ||
+                      dial.length < 4 ||
+                      deviceStatus !== "ready"
+                    }
                     className="col-span-3 shadow-glow"
                   >
                     <PhoneOutgoing className="h-4 w-4" /> Appeler
@@ -302,9 +444,18 @@ function PhonePage() {
             {/* Pulsing dots while dialing/ringing */}
             {(status === "dialing" || status === "ringing") && (
               <div className="mt-4 flex items-center justify-center gap-1.5 text-primary">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" style={{ animationDelay: "0ms" }} />
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" style={{ animationDelay: "150ms" }} />
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" style={{ animationDelay: "300ms" }} />
+                <span
+                  className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary"
+                  style={{ animationDelay: "0ms" }}
+                />
+                <span
+                  className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary"
+                  style={{ animationDelay: "150ms" }}
+                />
+                <span
+                  className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary"
+                  style={{ animationDelay: "300ms" }}
+                />
               </div>
             )}
           </div>
@@ -313,13 +464,17 @@ function PhonePage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-semibold">Journal d'appels</h2>
               <div className="flex items-center gap-1 rounded-lg border border-border bg-surface-elevated p-1 text-xs">
-                {(["all","in","out"] as const).map((k) => (
+                {(["all", "in", "out"] as const).map((k) => (
                   <button
                     key={k}
                     onClick={() => setLogFilter(k)}
                     className={`rounded-md px-3 py-1.5 transition ${logFilter === k ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
                   >
-                    {k === "all" ? `Tous (${logs.length})` : k === "in" ? `Entrants (${logs.filter((l)=>l.direction==="INBOUND").length})` : `Sortants (${logs.filter((l)=>l.direction==="OUTBOUND").length})`}
+                    {k === "all"
+                      ? `Tous (${logs.length})`
+                      : k === "in"
+                        ? `Entrants (${logs.filter((l) => l.direction === "INBOUND").length})`
+                        : `Sortants (${logs.filter((l) => l.direction === "OUTBOUND").length})`}
                   </button>
                 ))}
               </div>
@@ -335,52 +490,84 @@ function PhonePage() {
               </div>
             ) : (
               <>
-              <div className="mt-4 divide-y divide-border/60">
-                {pagedLogs.map((l) => {
-                  const outbound = l.direction === "OUTBOUND";
-                  const other    = outbound ? l.to_number : l.from_number;
-                  const ok       = l.status === "completed";
-                  const hasClient = !!(l as any).client_id;
-                  return (
-                    <div key={l.id} className="flex items-center justify-between gap-3 py-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${ok ? "bg-primary/15 text-primary" : "bg-destructive/15 text-destructive"}`}>
-                          {outbound ? <PhoneOutgoing className="h-4 w-4" /> : <PhoneIncoming className="h-4 w-4" />}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="font-mono text-sm font-medium truncate">{other}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(l.created_at).toLocaleString("fr-FR")} ·{" "}
-                            <span className={ok ? "text-primary" : "text-destructive"}>{statusFr(l.status)}</span>
-                          </p>
+                <div className="mt-4 divide-y divide-border/60">
+                  {pagedLogs.map((l) => {
+                    const outbound = l.direction === "OUTBOUND";
+                    const other = outbound ? l.to_number : l.from_number;
+                    const ok = l.status === "completed";
+                    const hasClient = !!(l as any).client_id;
+                    return (
+                      <div key={l.id} className="flex items-center justify-between gap-3 py-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span
+                            className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${ok ? "bg-primary/15 text-primary" : "bg-destructive/15 text-destructive"}`}
+                          >
+                            {outbound ? (
+                              <PhoneOutgoing className="h-4 w-4" />
+                            ) : (
+                              <PhoneIncoming className="h-4 w-4" />
+                            )}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="font-mono text-sm font-medium truncate">{other}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(l.created_at).toLocaleString("fr-FR")} ·{" "}
+                              <span className={ok ? "text-primary" : "text-destructive"}>
+                                {statusFr(l.status)}
+                              </span>
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <p className="font-mono text-sm">
+                              {formatDuration(l.duration_seconds)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {Number(l.cost_credits).toFixed(2)} crédits
+                            </p>
+                          </div>
+                          {!hasClient && other && (
+                            <Link
+                              to="/crm"
+                              search={{ newContactPhone: other }}
+                              title="Créer un contact"
+                            >
+                              <Button size="sm" variant="outline" className="gap-1">
+                                <UserPlus className="h-4 w-4" /> Ajouter
+                              </Button>
+                            </Link>
+                          )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <p className="font-mono text-sm">{formatDuration(l.duration_seconds)}</p>
-                          <p className="text-xs text-muted-foreground">{Number(l.cost_credits).toFixed(2)} crédits</p>
-                        </div>
-                        {!hasClient && other && (
-                          <Link to="/crm" search={{ newContactPhone: other }} title="Créer un contact">
-                            <Button size="sm" variant="outline" className="gap-1">
-                              <UserPlus className="h-4 w-4" /> Ajouter
-                            </Button>
-                          </Link>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {totalPages > 1 && (
-                <div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                  <span>Page {logPage} sur {totalPages} · {filteredLogs.length} appel(s)</span>
-                  <div className="flex gap-1">
-                    <Button size="sm" variant="outline" disabled={logPage === 1} onClick={() => setLogPage((p) => Math.max(1, p - 1))}>Précédent</Button>
-                    <Button size="sm" variant="outline" disabled={logPage >= totalPages} onClick={() => setLogPage((p) => Math.min(totalPages, p + 1))}>Suivant</Button>
-                  </div>
+                    );
+                  })}
                 </div>
-              )}
+                {totalPages > 1 && (
+                  <div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                    <span>
+                      Page {logPage} sur {totalPages} · {filteredLogs.length} appel(s)
+                    </span>
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={logPage === 1}
+                        onClick={() => setLogPage((p) => Math.max(1, p - 1))}
+                      >
+                        Précédent
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={logPage >= totalPages}
+                        onClick={() => setLogPage((p) => Math.min(totalPages, p + 1))}
+                      >
+                        Suivant
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -390,6 +577,14 @@ function PhonePage() {
       <TopUpDialog
         open={topUpOpen}
         onOpenChange={setTopUpOpen}
+        payoutCurrency={(dashQ.data?.profile as any)?.payout_currency}
+        mobileMoneyOperator={(dashQ.data?.profile as any)?.mobile_money_operator ?? null}
+        mobileMoneyNumber={(dashQ.data?.profile as any)?.mobile_money_number ?? null}
+      />
+      <ProSubscribeDialog
+        open={proOpen}
+        onOpenChange={setProOpen}
+        kycStatus={dashQ.data?.profile?.kyc_status ?? "NOT_SUBMITTED"}
         payoutCurrency={(dashQ.data?.profile as any)?.payout_currency}
         mobileMoneyOperator={(dashQ.data?.profile as any)?.mobile_money_operator ?? null}
         mobileMoneyNumber={(dashQ.data?.profile as any)?.mobile_money_number ?? null}
@@ -406,10 +601,15 @@ function formatDuration(s: number) {
 
 function statusFr(s: string | null) {
   switch (s) {
-    case "completed":  return "Terminé";
-    case "no-answer":  return "Sans réponse";
-    case "busy":       return "Occupé";
-    case "failed":     return "Échec";
-    default:           return s ?? "—";
+    case "completed":
+      return "Terminé";
+    case "no-answer":
+      return "Sans réponse";
+    case "busy":
+      return "Occupé";
+    case "failed":
+      return "Échec";
+    default:
+      return s ?? "—";
   }
 }

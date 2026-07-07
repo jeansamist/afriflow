@@ -1,7 +1,7 @@
 {
-  "_comment": "Pro plan config. Single price and single minute allowance for every supported number country (FR / US / CA / BE). priceEur is converted automatically to the payer's Mobile Money currency (CFA peg). premiumBonusMinutes is added on top for waitlist (early access) members.",
+  "_comment": "Pro plan config. priceEur is converted automatically to the payer's Mobile Money currency (CFA peg). trialMinutes: waitlist (early access / is_premium) members get them as a free trial before subscribing, and their balance resets to includedMinutes when they go Pro. Non-waitlist members get no trial; their trialMinutes are granted on top of includedMinutes when they subscribe (150 + 10 = 160).",
   "priceEur": 21,
   "cycleDays": 30,
   "includedMinutes": 150,
-  "premiumBonusMinutes": 50
+  "trialMinutes": 10
 }

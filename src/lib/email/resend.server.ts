@@ -7,7 +7,7 @@ import { render } from "@react-email/components";
 import * as React from "react";
 import { Resend } from "resend";
 
-const DEFAULT_FROM = "AfriFlow <noreply@notify.afriflow.tech>";
+const DEFAULT_FROM = "AfriFlow <noreply@afriflow.tech>";
 
 let _resend: Resend | undefined;
 

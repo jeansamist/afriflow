@@ -18,12 +18,15 @@ export type KycPayload = {
 export const submitKyc = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: KycPayload) => {
-    if (!d.idFront || !PATH_RE.test(d.idFront)) throw new Error("Pièce d'identité (recto) manquante.");
+    if (!d.idFront || !PATH_RE.test(d.idFront))
+      throw new Error("Pièce d'identité (recto) manquante.");
     if (!d.selfie || !PATH_RE.test(d.selfie)) throw new Error("Selfie manquant.");
     if (d.idBack && !PATH_RE.test(d.idBack)) throw new Error("Document verso invalide.");
-    if (!d.clientInvoice || !PATH_RE.test(d.clientInvoice)) throw new Error("Facture client manquante.");
+    if (!d.clientInvoice || !PATH_RE.test(d.clientInvoice))
+      throw new Error("Facture client manquante.");
     if (!d.mobileMoneyOperator?.trim()) throw new Error("Opérateur Mobile Money requis.");
-    if (!/^\+?\d[\d\s-]{6,18}$/.test(d.mobileMoneyNumber)) throw new Error("Numéro Mobile Money invalide.");
+    if (!/^\+?\d[\d\s-]{6,18}$/.test(d.mobileMoneyNumber))
+      throw new Error("Numéro Mobile Money invalide.");
     if (!d.mobileMoneyHolderName?.trim()) throw new Error("Titulaire du compte requis.");
     return d;
   })
@@ -36,7 +39,9 @@ export const submitKyc = createServerFn({ method: "POST" })
       .select("country_iso")
       .eq("id", userId)
       .maybeSingle();
-    const allowedOps = operatorsForCountry((profile as { country_iso: string | null } | null)?.country_iso);
+    const allowedOps = operatorsForCountry(
+      (profile as { country_iso: string | null } | null)?.country_iso,
+    );
     if (!(allowedOps as string[]).includes(data.mobileMoneyOperator)) {
       const labels = allowedOps.map((op) => OPERATOR_LABELS[op]).join(", ");
       throw new Error(`Opérateur non disponible dans votre pays. Choisissez parmi : ${labels}.`);

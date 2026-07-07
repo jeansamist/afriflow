@@ -3,8 +3,21 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import {
-  Phone, Loader2, CheckCircle2, ArrowRight, SkipForward, Mic, MessageSquare,
-  ArrowLeft, X, PhoneCall, PhoneIncoming, Shield, Zap, Globe, Crown,
+  Phone,
+  Loader2,
+  CheckCircle2,
+  ArrowRight,
+  SkipForward,
+  Mic,
+  MessageSquare,
+  ArrowLeft,
+  X,
+  PhoneCall,
+  PhoneIncoming,
+  Shield,
+  Zap,
+  Globe,
+  Crown,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -45,6 +58,7 @@ function OnboardingPhone() {
   const [numbers, setNumbers] = useState<AvailableNumber[]>([]);
   const [selected, setSelected] = useState<AvailableNumber | null>(null);
   const [provisionedNumber, setProvisionedNumber] = useState<string | null>(null);
+  const [isReserved, setIsReserved] = useState(false);
 
   const searchMut = useMutation({
     mutationFn: (iso: string) => searchFn({ data: { countryIso: iso } }),
@@ -65,6 +79,7 @@ function OnboardingPhone() {
     },
     onSuccess: (res) => {
       setProvisionedNumber(res.phoneNumber);
+      setIsReserved(res.reserved === true);
       setStep(3);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -77,7 +92,10 @@ function OnboardingPhone() {
   });
 
   function selectCountry(iso: string) {
-    if (iso !== countryIso) { setNumbers([]); setSelected(null); }
+    if (iso !== countryIso) {
+      setNumbers([]);
+      setSelected(null);
+    }
     setCountryIso(iso);
   }
 
@@ -115,16 +133,22 @@ function OnboardingPhone() {
         {/* Step indicator */}
         <div className="mb-8 flex items-center gap-2">
           <StepDot active={step === 1} done={step > 1} label="1" />
-          <div className={`h-px flex-1 transition-colors ${step > 1 ? "bg-primary" : "bg-border"}`} />
+          <div
+            className={`h-px flex-1 transition-colors ${step > 1 ? "bg-primary" : "bg-border"}`}
+          />
           <StepDot active={step === 2} done={step > 2} label="2" />
-          <div className={`h-px flex-1 transition-colors ${step > 2 ? "bg-primary" : "bg-border"}`} />
+          <div
+            className={`h-px flex-1 transition-colors ${step > 2 ? "bg-primary" : "bg-border"}`}
+          />
           <StepDot active={step === 3} done={false} label="3" />
         </div>
 
         {/* ── STEP 1: Country ── */}
         {step === 1 && (
           <>
-            <p className="mb-1 text-sm font-medium text-muted-foreground">Étape 1 · Choisissez un pays</p>
+            <p className="mb-1 text-sm font-medium text-muted-foreground">
+              Étape 1 · Choisissez un pays
+            </p>
             <p className="mb-4 text-xs text-muted-foreground">
               Mêmes minutes incluses et même prix quel que soit le pays choisi.
             </p>
@@ -136,9 +160,10 @@ function OnboardingPhone() {
                   disabled={searchMut.isPending}
                   className={`flex flex-col items-center gap-2 rounded-2xl border p-5 text-center transition
                     hover:border-primary/50 hover:bg-surface-elevated disabled:opacity-60
-                    ${countryIso === c.iso
-                      ? "border-primary bg-primary/5 ring-1 ring-primary/30"
-                      : "border-border bg-surface"
+                    ${
+                      countryIso === c.iso
+                        ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                        : "border-border bg-surface"
                     }`}
                 >
                   <span className="text-3xl leading-none">{c.flag}</span>
@@ -153,7 +178,13 @@ function OnboardingPhone() {
                 size="lg"
                 className="w-full shadow-glow"
               >
-                {searchMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Continuer <ArrowRight className="h-4 w-4" /></>}
+                {searchMut.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    Continuer <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
               </Button>
               <button
                 onClick={() => dismissMut.mutate()}
@@ -199,8 +230,14 @@ function OnboardingPhone() {
                           className={`w-full flex items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-surface-elevated ${isSel ? "bg-primary/5 border-l-2 border-l-primary" : ""}`}
                         >
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${isSel ? "bg-primary/20 text-primary" : "bg-surface-elevated text-muted-foreground"}`}>
-                              {isSel ? <CheckCircle2 className="h-4 w-4" /> : <Phone className="h-4 w-4" />}
+                            <div
+                              className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${isSel ? "bg-primary/20 text-primary" : "bg-surface-elevated text-muted-foreground"}`}
+                            >
+                              {isSel ? (
+                                <CheckCircle2 className="h-4 w-4" />
+                              ) : (
+                                <Phone className="h-4 w-4" />
+                              )}
                             </div>
                             <div className="min-w-0">
                               <p className="font-mono font-semibold text-sm">{n.friendlyName}</p>
@@ -211,12 +248,18 @@ function OnboardingPhone() {
                           </div>
                           <div className="flex gap-1 shrink-0">
                             {n.capabilities.voice && (
-                              <Badge variant="outline" className="border-primary/30 text-primary text-[10px] px-1.5 py-0">
+                              <Badge
+                                variant="outline"
+                                className="border-primary/30 text-primary text-[10px] px-1.5 py-0"
+                              >
                                 <Mic className="h-2.5 w-2.5 mr-0.5" /> Voix
                               </Badge>
                             )}
                             {n.capabilities.sms && (
-                              <Badge variant="outline" className="border-primary/30 text-primary text-[10px] px-1.5 py-0">
+                              <Badge
+                                variant="outline"
+                                className="border-primary/30 text-primary text-[10px] px-1.5 py-0"
+                              >
                                 <MessageSquare className="h-2.5 w-2.5 mr-0.5" /> SMS
                               </Badge>
                             )}
@@ -237,9 +280,13 @@ function OnboardingPhone() {
                     size="lg"
                     className="shadow-glow"
                   >
-                    {allocateMut.isPending
-                      ? <Loader2 className="h-4 w-4 animate-spin" />
-                      : <>Activer ce numéro <ArrowRight className="h-4 w-4" /></>}
+                    {allocateMut.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        Activer ce numéro <ArrowRight className="h-4 w-4" />
+                      </>
+                    )}
                   </Button>
                 </div>
               </>
@@ -250,15 +297,23 @@ function OnboardingPhone() {
         {/* ── STEP 3: Success ── */}
         {step === 3 && (
           <>
-            <p className="mb-4 text-sm font-medium text-muted-foreground">Étape 3 · Votre numéro est prêt</p>
+            <p className="mb-4 text-sm font-medium text-muted-foreground">
+              {isReserved
+                ? "Étape 3 · Votre numéro est réservé"
+                : "Étape 3 · Votre numéro est prêt"}
+            </p>
 
             <div className="rounded-2xl border border-border bg-surface p-6 shadow-elevated text-center">
               <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-primary/15 text-primary">
                 <CheckCircle2 className="h-8 w-8" />
               </div>
-              <h2 className="mt-4 text-xl font-bold">Numéro activé !</h2>
+              <h2 className="mt-4 text-xl font-bold">
+                {isReserved ? "Numéro réservé !" : "Numéro activé !"}
+              </h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                Numéro provisoire actif · souscrivez au plan Pro pour l'activer définitivement.
+                {isReserved
+                  ? "Ce numéro vous est réservé · il sera activé dès votre passage au plan Pro."
+                  : "Numéro provisoire actif · souscrivez au plan Pro pour l'activer définitivement."}
               </p>
               <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-5 py-3">
                 <Phone className="h-4 w-4 text-primary shrink-0" />
@@ -271,19 +326,41 @@ function OnboardingPhone() {
             <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex items-start gap-3">
               <Crown className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
               <p className="text-xs text-amber-300">
-                Votre numéro est provisoire. Souscrivez au plan Pro depuis votre tableau de bord pour activer vos minutes d'appel et maintenir votre numéro actif.
+                {isReserved
+                  ? "Votre numéro est réservé mais pas encore actif. Souscrivez au plan Pro depuis votre tableau de bord pour l'activer et débloquer vos minutes d'appel."
+                  : "Votre numéro est provisoire. Souscrivez au plan Pro depuis votre tableau de bord pour activer vos minutes d'appel et maintenir votre numéro actif."}
               </p>
             </div>
 
             <div className="mt-4 grid gap-3">
-              <ExplCard icon={<PhoneCall className="h-4 w-4" />} title="Passez des appels VoIP" body="Appelez n'importe quel numéro depuis votre cabine AfriFlow avec vos minutes incluses." />
-              <ExplCard icon={<PhoneIncoming className="h-4 w-4" />} title="Recevez des appels entrants" body="Partagez ce numéro à vos clients. Les appels arrivent directement dans votre cabine." />
-              <ExplCard icon={<Shield className="h-4 w-4" />} title="Numéro professionnel séparé" body="Gardez votre numéro personnel privé. Ce numéro est lié à votre compte AfriFlow." />
-              <ExplCard icon={<Zap className="h-4 w-4" />} title="Intégré à votre CRM" body="Chaque appel est enregistré et associé à vos dossiers clients automatiquement." />
+              <ExplCard
+                icon={<PhoneCall className="h-4 w-4" />}
+                title="Passez des appels VoIP"
+                body="Appelez n'importe quel numéro depuis votre cabine AfriFlow avec vos minutes incluses."
+              />
+              <ExplCard
+                icon={<PhoneIncoming className="h-4 w-4" />}
+                title="Recevez des appels entrants"
+                body="Partagez ce numéro à vos clients. Les appels arrivent directement dans votre cabine."
+              />
+              <ExplCard
+                icon={<Shield className="h-4 w-4" />}
+                title="Numéro professionnel séparé"
+                body="Gardez votre numéro personnel privé. Ce numéro est lié à votre compte AfriFlow."
+              />
+              <ExplCard
+                icon={<Zap className="h-4 w-4" />}
+                title="Intégré à votre CRM"
+                body="Chaque appel est enregistré et associé à vos dossiers clients automatiquement."
+              />
             </div>
 
             <div className="mt-6 flex flex-col gap-3">
-              <Button className="w-full shadow-glow" size="lg" onClick={() => navigate({ to: "/dashboard" })}>
+              <Button
+                className="w-full shadow-glow"
+                size="lg"
+                onClick={() => navigate({ to: "/dashboard" })}
+              >
                 <Globe className="h-4 w-4" />
                 Aller au tableau de bord · souscrire au Pro
                 <ArrowRight className="h-4 w-4" />
@@ -298,7 +375,9 @@ function OnboardingPhone() {
 
 function StepDot({ active, done, label }: { active: boolean; done: boolean; label: string }) {
   return (
-    <div className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold transition-colors ${done ? "bg-primary text-primary-foreground" : active ? "border-2 border-primary text-primary" : "border-2 border-border text-muted-foreground"}`}>
+    <div
+      className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold transition-colors ${done ? "bg-primary text-primary-foreground" : active ? "border-2 border-primary text-primary" : "border-2 border-border text-muted-foreground"}`}
+    >
       {done ? <CheckCircle2 className="h-4 w-4" /> : label}
     </div>
   );
