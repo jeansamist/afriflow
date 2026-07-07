@@ -216,7 +216,7 @@ export function ProSubscribeDialog({
                   <Phone className="h-4 w-4 shrink-0" /> Numéro professionnel requis
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Choisissez d'abord un numéro professionnel (France, Belgique, Canada ou USA) — il
+                  Choisissez d'abord un numéro professionnel (France, Canada ou USA) — il
                   est inclus dans votre plan.
                 </p>
                 <Link to="/onboarding/phone">

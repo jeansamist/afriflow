@@ -372,14 +372,25 @@ export const freeAllocatePhoneNumber = createServerFn({ method: "POST" })
       };
     }
 
-    const { data: profileRow } = await supabase
-      .from("profiles")
-      .select("is_premium" as "id")
-      .eq("id", userId)
-      .maybeSingle();
+    const [{ data: profileRow }, { data: walletRow }] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("is_premium" as "id")
+        .eq("id", userId)
+        .maybeSingle(),
+      supabase.from("phone_wallets").select("plan_status").eq("user_id", userId).maybeSingle(),
+    ]);
     const isPremium = (profileRow as { is_premium: boolean } | null)?.is_premium ?? false;
+    const planStatus = (walletRow as { plan_status: string } | null)?.plan_status ?? null;
 
-    if (!isPremium) {
+    // Immediate Twilio purchase only for waitlist members with a running trial
+    // or plan (no wallet yet = brand-new account, about to start its trial).
+    // Everyone else (incl. returning users whose number was released after a
+    // lapsed subscription) gets a reservation until they pay for Pro.
+    const purchaseNow =
+      isPremium && (planStatus === null || planStatus === "TRIAL" || planStatus === "ACTIVE");
+
+    if (!purchaseNow) {
       // Reserve only — no Twilio purchase until the user subscribes to Pro.
       const { error } = await supabaseAdmin.from("phone_allocations").insert({
         user_id: userId,

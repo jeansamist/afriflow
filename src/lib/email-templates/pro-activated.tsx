@@ -13,12 +13,18 @@ const Email = ({ firstName, includedMinutes = 150, cycleEnd }: Props) => (
     <Heading style={h1}>Bienvenue dans Pro 🎉</Heading>
     <Text style={p}>Bonjour {firstName || "et bienvenue"},</Text>
     <Text style={p}>
-      Votre abonnement Pro AfriFlow est activé. Vous pouvez recevoir des paiements et appeler vos clients
-      avec votre numéro pro.
+      Votre abonnement Pro AfriFlow est activé. Vous pouvez recevoir des paiements et appeler vos
+      clients avec votre numéro pro.
     </Text>
     <div style={card}>
-      <Text style={p}><strong>{includedMinutes} minutes</strong> incluses ce cycle.</Text>
-      {cycleEnd ? <Text style={p}>Prochain renouvellement : {new Date(cycleEnd).toLocaleDateString("fr-FR")}</Text> : null}
+      <Text style={p}>
+        <strong>{includedMinutes} minutes</strong> incluses ce cycle.
+      </Text>
+      {cycleEnd ? (
+        <Text style={p}>
+          Prochain renouvellement : {new Date(cycleEnd).toLocaleDateString("fr-FR")}
+        </Text>
+      ) : null}
     </div>
   </Layout>
 );

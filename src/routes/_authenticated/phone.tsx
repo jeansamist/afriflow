@@ -308,7 +308,7 @@ function PhonePage() {
                 </p>
                 <ul className="mt-3 space-y-1 text-left text-xs text-muted-foreground inline-block">
                   <li className="flex items-center gap-2">
-                    <span className="h-1 w-1 rounded-full bg-primary" /> Numéro local FR / BE / US /
+                    <span className="h-1 w-1 rounded-full bg-primary" /> Numéro local FR / US /
                     CA
                   </li>
                   <li className="flex items-center gap-2">

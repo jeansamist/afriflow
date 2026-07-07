@@ -13,11 +13,14 @@ const Email = ({ firstName, minutes = 0, reference }: Props) => (
     <Heading style={h1}>Recharge confirmée</Heading>
     <Text style={p}>Bonjour {firstName || "👋"},</Text>
     <Text style={p}>
-      Vos <strong>{minutes} minutes</strong> ont été créditées sur votre wallet et n'expirent jamais.
+      Vos <strong>{minutes} minutes</strong> ont été créditées sur votre wallet et n'expirent
+      jamais.
     </Text>
     {reference ? (
       <div style={card}>
-        <Text style={p}>Référence : <strong>{reference}</strong></Text>
+        <Text style={p}>
+          Référence : <strong>{reference}</strong>
+        </Text>
       </div>
     ) : null}
   </Layout>

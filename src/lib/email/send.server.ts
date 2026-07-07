@@ -1,14 +1,27 @@
 /**
  * Server-side helper to send a transactional email from a server function.
- * Renders a React Email template and enqueues it via the email pgmq pipeline.
+ * Renders a React Email template and sends it directly via Resend.
+ * (The old pgmq/Lovable queue pipeline is bypassed: it required a pg_cron job
+ * and LOVABLE_API_KEY that are not provisioned, so messages stayed pending.)
  */
 import { TEMPLATES } from "@/lib/email-templates/registry";
+import { getResend } from "@/lib/email/resend.server";
 import { render } from "@react-email/components";
 import * as React from "react";
 
-const SITE_NAME = "smooth-dev-stream";
-const SENDER_DOMAIN = "afriflow.tech";
-const FROM_DOMAIN = "afriflow.tech";
+const DEFAULT_FROM = "AfriFlow <noreply@afriflow.tech>";
+const FALLBACK_APP_URL = "https://afriflow.tech";
+
+/** Public origin used to build unsubscribe links (works outside a request too). */
+async function resolveAppOrigin(): Promise<string> {
+  if (process.env.PUBLIC_APP_URL) return process.env.PUBLIC_APP_URL;
+  try {
+    const { getRequest } = await import("@tanstack/react-start/server");
+    return new URL(getRequest().url).origin;
+  } catch {
+    return FALLBACK_APP_URL;
+  }
+}
 
 function generateToken(): string {
   const bytes = new Uint8Array(32);
@@ -21,7 +34,7 @@ function generateToken(): string {
 export type SendAppEmailArgs = {
   templateName: string;
   recipientEmail: string;
-  templateData?: Record<string, any>;
+  templateData?: Record<string, unknown>;
   idempotencyKey?: string;
 };
 
@@ -92,41 +105,35 @@ export async function sendAppEmail(args: SendAppEmailArgs) {
   const subject =
     typeof template.subject === "function" ? template.subject(templateData) : template.subject;
 
+  // Send directly via Resend (RFC 8058 one-click unsubscribe headers)
+  const origin = await resolveAppOrigin();
+  const unsubscribeUrl = `${origin}/email/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`;
+
+  const { data: sendRes, error } = await getResend().emails.send({
+    from: process.env.RESEND_FROM || DEFAULT_FROM,
+    to: effectiveRecipient,
+    subject,
+    html,
+    text: plainText,
+    headers: {
+      "List-Unsubscribe": `<${unsubscribeUrl}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      ...(idempotencyKey ? { "X-Entity-Ref-ID": idempotencyKey } : {}),
+    },
+  });
+
   await admin.from("email_send_log").insert({
     message_id: messageId,
     template_name: templateName,
     recipient_email: effectiveRecipient,
-    status: "pending",
-  });
-
-  const { error } = await admin.rpc("enqueue_email", {
-    queue_name: "transactional_emails",
-    payload: {
-      message_id: messageId,
-      to: effectiveRecipient,
-      from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
-      sender_domain: SENDER_DOMAIN,
-      subject,
-      html,
-      text: plainText,
-      purpose: "transactional",
-      label: templateName,
-      idempotency_key: idempotencyKey || messageId,
-      unsubscribe_token: unsubscribeToken,
-      queued_at: new Date().toISOString(),
-    },
+    status: error ? "failed" : "sent",
+    error_message: error ? error.message : null,
   });
 
   if (error) {
-    await admin.from("email_send_log").insert({
-      message_id: messageId,
-      template_name: templateName,
-      recipient_email: effectiveRecipient,
-      status: "failed",
-      error_message: error.message,
-    });
+    console.error("[email] resend send failed", templateName, error);
     return { ok: false, reason: error.message };
   }
 
-  return { ok: true, queued: true, messageId };
+  return { ok: true, queued: false, messageId, resendId: sendRes?.id };
 }

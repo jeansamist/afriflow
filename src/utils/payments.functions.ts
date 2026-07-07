@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { type StripeEnv, createStripeClient, getStripeErrorMessage } from "@/lib/stripe.server";
 
@@ -33,7 +34,7 @@ export const createPaymentLink = createServerFn({ method: "POST" })
     const { convertAmount, payoutCurrencyForCountry, getRate } = await import("./fx.functions");
     const { data: profile } = await supabase
       .from("profiles")
-      .select("payout_currency, country_iso, kyc_status")
+      .select("payout_currency, country_iso, kyc_status, first_name, last_name")
       .eq("id", userId)
       .maybeSingle();
 
@@ -101,6 +102,42 @@ export const createPaymentLink = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error || !row) throw new Error(error?.message || "Création impossible");
+
+    // Notify every admin (email via Resend + in-app). Never blocks the user.
+    try {
+      const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || null;
+      const email = (context.claims as { email?: string } | null)?.email ?? null;
+      const origin = process.env.PUBLIC_APP_URL || new URL(getRequest().url).origin;
+
+      const { sendAdminEmails } = await import("@/lib/email/admin-notify.server");
+      await sendAdminEmails({
+        templateName: "admin-payment-link-created",
+        idempotencyPrefix: `admin-plink-${row.id}`,
+        templateData: {
+          userName: fullName,
+          userEmail: email,
+          amount: data.amount,
+          currency: invoiceCurrency,
+          description: data.description.trim(),
+          localAmount,
+          localCurrency: payoutCurrency,
+          linkUrl: `${origin}/pay/${row.id}`,
+        },
+      });
+
+      const { pushAdminNotification } = await import("@/lib/notifications.server");
+      await pushAdminNotification({
+        kind: "ADMIN_ALERT",
+        title: `Nouveau lien de paiement · ${data.amount.toFixed(2)} ${invoiceCurrency}`,
+        body: fullName
+          ? `${fullName} a créé un lien de paiement (${data.description.trim()}).`
+          : `Un utilisateur a créé un lien de paiement (${data.description.trim()}).`,
+        metadata: { paymentLinkId: row.id },
+      });
+    } catch (e) {
+      console.error("[payments] admin notify failed", e);
+    }
+
     return { id: row.id as string };
   });
 
