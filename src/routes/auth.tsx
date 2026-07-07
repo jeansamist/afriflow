@@ -17,6 +17,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { grantPremiumIfWaitlisted } from "@/utils/waitlist.functions";
+import { signUpWithEmail, requestPasswordReset } from "@/utils/auth.functions";
 import { SUPPORTED_COUNTRIES, SUPPORTED_COUNTRY_ISOS } from "@/lib/countries";
 
 const searchSchema = z.object({
@@ -28,7 +29,10 @@ export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
       { title: "Connexion · AfriFlow" },
-      { name: "description", content: "Accédez à votre cabine AfriFlow ou créez un compte en moins d'une minute." },
+      {
+        name: "description",
+        content: "Accédez à votre cabine AfriFlow ou créez un compte en moins d'une minute.",
+      },
     ],
   }),
   component: AuthPage,
@@ -52,7 +56,13 @@ function AuthPage() {
   const isSignUp = mode === "signup";
 
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", password: "", country: "" });
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    country: "",
+  });
   const [showPw, setShowPw] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
@@ -74,21 +84,20 @@ function AuthPage() {
           toast.error(parsed.error.issues[0].message);
           return;
         }
-        const { error } = await supabase.auth.signUp({
-          email: parsed.data.email,
-          password: parsed.data.password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/dashboard`,
-            data: {
-              first_name: parsed.data.firstName,
-              last_name: parsed.data.lastName,
-              country_iso: parsed.data.country,
-            },
-          },
-        });
-        if (error) {
-          toast.error(error.message);
-          return;
+        const res = await signUpWithEmail({ data: parsed.data });
+        if (!res.ok) {
+          if (res.code === "user_exists") {
+            toast.error("Un compte existe déjà avec cet email. Connectez-vous.");
+            return;
+          }
+          if (res.code === "signup_failed") {
+            toast.error("Impossible de créer le compte. Réessayez.");
+            return;
+          }
+          // Account created but the email failed — the verify page offers a resend.
+          toast.error(
+            "Compte créé, mais l'email n'a pas pu être envoyé. Utilisez « Renvoyer le lien ».",
+          );
         }
         // Fire-and-forget: grant premium if the email is on the waitlist
         grantPremiumIfWaitlisted({ data: { email: parsed.data.email } }).catch(() => {});
@@ -133,26 +142,40 @@ function AuthPage() {
     const email = forgotEmail.trim();
     if (!z.string().email().safeParse(email).success) return toast.error("Email invalide.");
     setForgotLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    setForgotLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success("Email de réinitialisation envoyé.");
-    setForgotOpen(false);
+    try {
+      const res = await requestPasswordReset({ data: { email } });
+      if (!res.ok) {
+        return toast.error(
+          res.code === "cooldown"
+            ? "Un email vient d'être envoyé. Patientez une minute avant de réessayer."
+            : "L'email n'a pas pu être envoyé. Réessayez.",
+        );
+      }
+      toast.success(
+        "Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.",
+      );
+      setForgotOpen(false);
+    } finally {
+      setForgotLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-hero">
       <div className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-6 py-10">
         <div className="w-full max-w-md">
-          <Link to="/" className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+          <Link
+            to="/"
+            className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+          >
             <ArrowLeft className="h-4 w-4" /> Retour à l'accueil
           </Link>
 
           <div className="rounded-3xl border border-border bg-surface-elevated p-8 shadow-card">
             <div className="mb-6 flex items-center gap-3">
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-primary font-bold text-primary-foreground shadow-glow">A</span>
+              <span className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-primary font-bold text-primary-foreground shadow-glow">
+                A
+              </span>
               <div>
                 <h1 className="text-xl font-bold tracking-tight">
                   {isSignUp ? "Créer votre compte" : "Content de vous revoir 👋"}
@@ -175,14 +198,30 @@ function AuthPage() {
               {isSignUp && (
                 <>
                   <div className="grid grid-cols-2 gap-3">
-                    <Field id="firstName" label="Prénom" icon={User} value={form.firstName}
-                      onChange={(v) => setForm({ ...form, firstName: v })} placeholder="Aïcha" />
-                    <Field id="lastName" label="Nom" value={form.lastName}
-                      onChange={(v) => setForm({ ...form, lastName: v })} placeholder="Diallo" />
+                    <Field
+                      id="firstName"
+                      label="Prénom"
+                      icon={User}
+                      value={form.firstName}
+                      onChange={(v) => setForm({ ...form, firstName: v })}
+                      placeholder="Aïcha"
+                    />
+                    <Field
+                      id="lastName"
+                      label="Nom"
+                      value={form.lastName}
+                      onChange={(v) => setForm({ ...form, lastName: v })}
+                      placeholder="Diallo"
+                    />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">Pays de résidence</Label>
-                    <Select value={form.country} onValueChange={(v) => setForm({ ...form, country: v })}>
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Pays de résidence
+                    </Label>
+                    <Select
+                      value={form.country}
+                      onValueChange={(v) => setForm({ ...form, country: v })}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Sélectionnez votre pays" />
                       </SelectTrigger>
@@ -197,16 +236,28 @@ function AuthPage() {
                   </div>
                 </>
               )}
-              <Field id="email" label="Email pro" type="email" icon={Mail} value={form.email}
-                onChange={(v) => setForm({ ...form, email: v })} placeholder="vous@entreprise.com" />
+              <Field
+                id="email"
+                label="Email pro"
+                type="email"
+                icon={Mail}
+                value={form.email}
+                onChange={(v) => setForm({ ...form, email: v })}
+                placeholder="vous@entreprise.com"
+              />
 
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-xs font-medium text-muted-foreground">Mot de passe</Label>
+                  <Label htmlFor="password" className="text-xs font-medium text-muted-foreground">
+                    Mot de passe
+                  </Label>
                   {!isSignUp && (
                     <button
                       type="button"
-                      onClick={() => { setForgotEmail(form.email); setForgotOpen(true); }}
+                      onClick={() => {
+                        setForgotEmail(form.email);
+                        setForgotOpen(true);
+                      }}
                       className="text-xs text-primary hover:underline"
                     >
                       Mot de passe oublié ?
@@ -233,11 +284,19 @@ function AuthPage() {
                     {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                {isSignUp && <p className="text-[11px] text-muted-foreground">Au moins 8 caractères</p>}
+                {isSignUp && (
+                  <p className="text-[11px] text-muted-foreground">Au moins 8 caractères</p>
+                )}
               </div>
 
               <Button type="submit" className="w-full shadow-glow" disabled={loading}>
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : isSignUp ? "Créer mon compte" : "Se connecter"}
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : isSignUp ? (
+                  "Créer mon compte"
+                ) : (
+                  "Se connecter"
+                )}
               </Button>
             </form>
 
@@ -273,7 +332,9 @@ function AuthPage() {
               Recevez un lien sécurisé par email pour définir un nouveau mot de passe.
             </p>
             <div className="mt-4 space-y-2">
-              <Label htmlFor="forgot-email" className="text-xs font-medium text-muted-foreground">Email</Label>
+              <Label htmlFor="forgot-email" className="text-xs font-medium text-muted-foreground">
+                Email
+              </Label>
               <Input
                 id="forgot-email"
                 type="email"
@@ -283,7 +344,9 @@ function AuthPage() {
               />
             </div>
             <div className="mt-5 flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setForgotOpen(false)}>Annuler</Button>
+              <Button variant="ghost" onClick={() => setForgotOpen(false)}>
+                Annuler
+              </Button>
               <Button onClick={sendReset} disabled={forgotLoading}>
                 {forgotLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Envoyer le lien"}
               </Button>
@@ -296,19 +359,38 @@ function AuthPage() {
 }
 
 function Field({
-  id, label, value, onChange, type = "text", icon: Icon, placeholder, hint,
+  id,
+  label,
+  value,
+  onChange,
+  type = "text",
+  icon: Icon,
+  placeholder,
+  hint,
 }: {
-  id: string; label: string; value: string; onChange: (v: string) => void;
-  type?: string; icon?: React.ComponentType<{ className?: string }>;
-  placeholder?: string; hint?: string;
+  id: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  icon?: React.ComponentType<{ className?: string }>;
+  placeholder?: string;
+  hint?: string;
 }) {
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={id} className="text-xs font-medium text-muted-foreground">{label}</Label>
+      <Label htmlFor={id} className="text-xs font-medium text-muted-foreground">
+        {label}
+      </Label>
       <div className="relative">
-        {Icon && <Icon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />}
+        {Icon && (
+          <Icon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        )}
         <Input
-          id={id} type={type} value={value} placeholder={placeholder}
+          id={id}
+          type={type}
+          value={value}
+          placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}
           className={Icon ? "pl-9" : ""}
         />
@@ -321,7 +403,10 @@ function Field({
 function GoogleIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-4 w-4">
-      <path fill="#EA4335" d="M12 10.2v3.9h5.5c-.2 1.3-1.6 3.8-5.5 3.8-3.3 0-6-2.7-6-6s2.7-6 6-6c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.7 3.3 14.6 2.3 12 2.3 6.7 2.3 2.5 6.5 2.5 11.8S6.7 21.3 12 21.3c6.9 0 9.3-4.8 9.3-7.3 0-.5 0-.9-.1-1.3H12z"/>
+      <path
+        fill="#EA4335"
+        d="M12 10.2v3.9h5.5c-.2 1.3-1.6 3.8-5.5 3.8-3.3 0-6-2.7-6-6s2.7-6 6-6c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.7 3.3 14.6 2.3 12 2.3 6.7 2.3 2.5 6.5 2.5 11.8S6.7 21.3 12 21.3c6.9 0 9.3-4.8 9.3-7.3 0-.5 0-.9-.1-1.3H12z"
+      />
     </svg>
   );
 }

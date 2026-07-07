@@ -10,8 +10,30 @@ export const Route = createFileRoute("/api/voice/twiml")({
         // on formData() — Twilio may send charset or other parameters that break it.
         const text = await request.text();
         const params = new URLSearchParams(text);
-        const to       = params.get("To");
+        const to = params.get("To");
         const callerId = params.get("callerId");
+        const from = params.get("From"); // "client:<userId>" for browser-originated calls
+
+        // Outbound calls are reserved for KYC-approved accounts.
+        const identity = from?.startsWith("client:") ? from.slice("client:".length) : null;
+        if (!identity) {
+          return new Response(
+            `<?xml version="1.0" encoding="UTF-8"?><Response><Reject/></Response>`,
+            { headers: { "Content-Type": "text/xml" } },
+          );
+        }
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: profile } = await supabaseAdmin
+          .from("profiles")
+          .select("kyc_status")
+          .eq("id", identity)
+          .maybeSingle();
+        if ((profile as { kyc_status: string | null } | null)?.kyc_status !== "APPROVED") {
+          return new Response(
+            `<?xml version="1.0" encoding="UTF-8"?><Response><Say language="fr-FR">Les appels sortants sont réservés aux comptes vérifiés. Complétez votre vérification d'identité.</Say><Hangup/></Response>`,
+            { headers: { "Content-Type": "text/xml" } },
+          );
+        }
 
         if (!to) {
           return new Response(

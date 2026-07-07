@@ -13,7 +13,10 @@ export const searchPhoneNumbers = createServerFn({ method: "POST" })
     return data;
   })
   .handler(async ({ data }) => {
-    console.info("[phone-rent] searchPhoneNumbers start", { countryIso: data.countryIso, contains: data.contains });
+    console.info("[phone-rent] searchPhoneNumbers start", {
+      countryIso: data.countryIso,
+      contains: data.contains,
+    });
     const { searchAvailableNumbers } = await import("@/lib/twilio.server");
     const results = await searchAvailableNumbers(data.countryIso, data.contains);
     console.info(`[phone-rent] searchPhoneNumbers done → ${results.length} numbers`);
@@ -23,11 +26,7 @@ export const searchPhoneNumbers = createServerFn({ method: "POST" })
 export const createPhoneNumberCheckout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
-    (data: {
-      phoneNumber: string;
-      countryIso: string;
-      stripeEnv?: "sandbox" | "live";
-    }) => {
+    (data: { phoneNumber: string; countryIso: string; stripeEnv?: "sandbox" | "live" }) => {
       if (!data.phoneNumber?.trim()) throw new Error("Numéro requis");
       if (!PHONE_COUNTRIES[data.countryIso]) throw new Error("Pays non supporté");
       return { ...data, stripeEnv: (data.stripeEnv ?? "sandbox") as "sandbox" | "live" };
@@ -53,9 +52,7 @@ export const createPhoneNumberCheckout = createServerFn({ method: "POST" })
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: email ?? undefined,
-        name:
-          [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
-          undefined,
+        name: [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || undefined,
         metadata: { user_id: userId },
       });
       customerId = customer.id;
@@ -162,26 +159,22 @@ export const createElgioPayPayment = createServerFn({ method: "POST" })
     });
 
     const [{ data: profile }, { data: authData }] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select("first_name, last_name")
-        .eq("id", userId)
-        .maybeSingle(),
+      supabase.from("profiles").select("first_name, last_name").eq("id", userId).maybeSingle(),
       supabase.auth.getUser(),
     ]);
 
     const priceUsd = monthlyPriceUsd(data.countryIso);
     console.info("[phone-rent] price", { priceUsd, countryIso: data.countryIso });
 
-    const {
-      initiatePayment,
-      detectCurrency,
-      usdToLocal,
-    } = await import("@/lib/elgiopay.server");
+    const { initiatePayment, detectCurrency, usdToLocal } = await import("@/lib/elgiopay.server");
 
     const currency = detectCurrency(data.momoPhone);
     const amount = usdToLocal(priceUsd, currency);
-    console.info("[phone-rent] currency detection", { momoPhone: data.momoPhone, currency, amount });
+    console.info("[phone-rent] currency detection", {
+      momoPhone: data.momoPhone,
+      currency,
+      amount,
+    });
 
     const customerName =
       [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || undefined;
@@ -285,9 +278,14 @@ export const finalizePhoneProvisioning = createServerFn({ method: "POST" })
     // Purchase the Twilio number (voice webhook is set from the request origin)
     const { purchasePhoneNumber } = await import("@/lib/twilio.server");
     const origin = new URL(getRequest().url).origin;
-    const { sid: twilioSid, phoneNumber: provisionedNumber } =
-      await purchasePhoneNumber(data.phoneNumber, origin);
-    console.info("[phone-rent] finalizePhoneProvisioning: Twilio purchased", { twilioSid, provisionedNumber });
+    const { sid: twilioSid, phoneNumber: provisionedNumber } = await purchasePhoneNumber(
+      data.phoneNumber,
+      origin,
+    );
+    console.info("[phone-rent] finalizePhoneProvisioning: Twilio purchased", {
+      twilioSid,
+      provisionedNumber,
+    });
 
     // Insert phone_allocation
     const { data: allocation, error: allocErr } = await supabaseAdmin
@@ -336,8 +334,10 @@ export const finalizePhoneProvisioning = createServerFn({ method: "POST" })
   });
 
 /**
- * Provision a Twilio phone number for free during onboarding.
- * No payment is taken here — the Pro subscription covers everything.
+ * Allocate a phone number during onboarding.
+ * Waitlist (premium) members: the Twilio number is purchased immediately.
+ * Everyone else: the number is only RESERVED — Twilio purchase happens when
+ * they subscribe to Pro, so transient users never cost us Twilio rental fees.
  */
 export const freeAllocatePhoneNumber = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -347,30 +347,81 @@ export const freeAllocatePhoneNumber = createServerFn({ method: "POST" })
     return d;
   })
   .handler(async ({ data, context }) => {
-    const { userId } = context;
+    const { supabase, userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // Idempotency: bail if already allocated
+    // Idempotency: bail if already allocated or reserved
     const { data: existing } = await supabaseAdmin
       .from("phone_allocations")
-      .select("id, e164")
+      .select("id, e164, status")
       .eq("user_id", userId)
-      .eq("status", "ACTIVE")
+      .in("status", ["ACTIVE", "RESERVED"])
       .maybeSingle();
     if (existing) {
-      const row = existing as { id: string; e164: string };
-      console.info("[free-alloc] already allocated:", row.e164);
+      const row = existing as { id: string; e164: string; status: string };
+      console.info("[free-alloc] already allocated/reserved:", row.e164, row.status);
       await supabaseAdmin
         .from("profiles")
         .update({ allocated_phone_number: row.e164, phone_onboarding_completed: true } as any)
         .eq("id", userId);
-      return { ok: true, alreadyProvisioned: true, phoneNumber: row.e164 };
+      return {
+        ok: true,
+        alreadyProvisioned: true,
+        reserved: row.status === "RESERVED",
+        phoneNumber: row.e164,
+      };
+    }
+
+    const [{ data: profileRow }, { data: walletRow }] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("is_premium" as "id")
+        .eq("id", userId)
+        .maybeSingle(),
+      supabase.from("phone_wallets").select("plan_status").eq("user_id", userId).maybeSingle(),
+    ]);
+    const isPremium = (profileRow as { is_premium: boolean } | null)?.is_premium ?? false;
+    const planStatus = (walletRow as { plan_status: string } | null)?.plan_status ?? null;
+
+    // Immediate Twilio purchase only for waitlist members with a running trial
+    // or plan (no wallet yet = brand-new account, about to start its trial).
+    // Everyone else (incl. returning users whose number was released after a
+    // lapsed subscription) gets a reservation until they pay for Pro.
+    const purchaseNow =
+      isPremium && (planStatus === null || planStatus === "TRIAL" || planStatus === "ACTIVE");
+
+    if (!purchaseNow) {
+      // Reserve only — no Twilio purchase until the user subscribes to Pro.
+      const { error } = await supabaseAdmin.from("phone_allocations").insert({
+        user_id: userId,
+        e164: data.phoneNumber,
+        country_iso: data.countryIso,
+        provider: "TWILIO",
+        status: "RESERVED",
+        twilio_sid: null,
+      } as any);
+      if (error) throw new Error(error.message);
+
+      await supabaseAdmin
+        .from("profiles")
+        .update({
+          allocated_phone_number: data.phoneNumber,
+          phone_onboarding_completed: true,
+        } as any)
+        .eq("id", userId);
+
+      console.info(
+        `[free-alloc] ✓ reserved ${data.phoneNumber} for user ${userId} (no Twilio purchase)`,
+      );
+      return { ok: true, alreadyProvisioned: false, reserved: true, phoneNumber: data.phoneNumber };
     }
 
     const { purchasePhoneNumber } = await import("@/lib/twilio.server");
     const origin = new URL(getRequest().url).origin;
-    const { sid: twilioSid, phoneNumber: provisionedNumber } =
-      await purchasePhoneNumber(data.phoneNumber, origin);
+    const { sid: twilioSid, phoneNumber: provisionedNumber } = await purchasePhoneNumber(
+      data.phoneNumber,
+      origin,
+    );
     console.info("[free-alloc] Twilio purchased", { twilioSid, provisionedNumber });
 
     await supabaseAdmin.from("phone_allocations").insert({
@@ -384,9 +435,12 @@ export const freeAllocatePhoneNumber = createServerFn({ method: "POST" })
 
     await supabaseAdmin
       .from("profiles")
-      .update({ allocated_phone_number: provisionedNumber, phone_onboarding_completed: true } as any)
+      .update({
+        allocated_phone_number: provisionedNumber,
+        phone_onboarding_completed: true,
+      } as any)
       .eq("id", userId);
 
     console.info(`[free-alloc] ✓ provisioned ${provisionedNumber} for user ${userId}`);
-    return { ok: true, alreadyProvisioned: false, phoneNumber: provisionedNumber };
+    return { ok: true, alreadyProvisioned: false, reserved: false, phoneNumber: provisionedNumber };
   });

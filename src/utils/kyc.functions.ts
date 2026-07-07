@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { OPERATOR_LABELS, operatorsForCountry } from "@/lib/countries";
 
@@ -18,12 +19,15 @@ export type KycPayload = {
 export const submitKyc = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: KycPayload) => {
-    if (!d.idFront || !PATH_RE.test(d.idFront)) throw new Error("Pièce d'identité (recto) manquante.");
+    if (!d.idFront || !PATH_RE.test(d.idFront))
+      throw new Error("Pièce d'identité (recto) manquante.");
     if (!d.selfie || !PATH_RE.test(d.selfie)) throw new Error("Selfie manquant.");
     if (d.idBack && !PATH_RE.test(d.idBack)) throw new Error("Document verso invalide.");
-    if (!d.clientInvoice || !PATH_RE.test(d.clientInvoice)) throw new Error("Facture client manquante.");
+    if (!d.clientInvoice || !PATH_RE.test(d.clientInvoice))
+      throw new Error("Facture client manquante.");
     if (!d.mobileMoneyOperator?.trim()) throw new Error("Opérateur Mobile Money requis.");
-    if (!/^\+?\d[\d\s-]{6,18}$/.test(d.mobileMoneyNumber)) throw new Error("Numéro Mobile Money invalide.");
+    if (!/^\+?\d[\d\s-]{6,18}$/.test(d.mobileMoneyNumber))
+      throw new Error("Numéro Mobile Money invalide.");
     if (!d.mobileMoneyHolderName?.trim()) throw new Error("Titulaire du compte requis.");
     return d;
   })
@@ -33,10 +37,15 @@ export const submitKyc = createServerFn({ method: "POST" })
 
     const { data: profile } = await context.supabase
       .from("profiles")
-      .select("country_iso")
+      .select("country_iso, first_name, last_name")
       .eq("id", userId)
       .maybeSingle();
-    const allowedOps = operatorsForCountry((profile as { country_iso: string | null } | null)?.country_iso);
+    const prof = profile as {
+      country_iso: string | null;
+      first_name: string | null;
+      last_name: string | null;
+    } | null;
+    const allowedOps = operatorsForCountry(prof?.country_iso);
     if (!(allowedOps as string[]).includes(data.mobileMoneyOperator)) {
       const labels = allowedOps.map((op) => OPERATOR_LABELS[op]).join(", ");
       throw new Error(`Opérateur non disponible dans votre pays. Choisissez parmi : ${labels}.`);
@@ -61,6 +70,41 @@ export const submitKyc = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     console.info("[kyc] dossier reçu, en file d'attente vérification", { userId });
+
+    // Notify every admin (email via Resend + in-app). Never blocks the user.
+    try {
+      const fullName = [prof?.first_name, prof?.last_name].filter(Boolean).join(" ") || null;
+      const email = (context.claims as { email?: string } | null)?.email ?? null;
+      const origin = process.env.PUBLIC_APP_URL || new URL(getRequest().url).origin;
+
+      const { sendAdminEmails } = await import("@/lib/email/admin-notify.server");
+      await sendAdminEmails({
+        templateName: "admin-kyc-submitted",
+        idempotencyPrefix: `admin-kyc-${userId}-${Date.now()}`,
+        templateData: {
+          userName: fullName,
+          userEmail: email,
+          operator:
+            OPERATOR_LABELS[data.mobileMoneyOperator as keyof typeof OPERATOR_LABELS] ??
+            data.mobileMoneyOperator,
+          mobileMoneyNumber: data.mobileMoneyNumber,
+          reviewUrl: `${origin}/admin/kyc`,
+        },
+      });
+
+      const { pushAdminNotification } = await import("@/lib/notifications.server");
+      await pushAdminNotification({
+        kind: "ADMIN_ALERT",
+        title: "Nouveau dossier KYC à examiner",
+        body: fullName
+          ? `${fullName} a soumis son dossier de vérification d'identité.`
+          : "Un utilisateur a soumis son dossier de vérification d'identité.",
+        linkTo: "/admin/kyc",
+      });
+    } catch (e) {
+      console.error("[kyc] admin notify failed", e);
+    }
+
     return { ok: true, status: "PENDING_REVIEW" as const };
   });
 

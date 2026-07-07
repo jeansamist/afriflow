@@ -1,10 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import {
-  type StripeEnv,
-  createStripeClient,
-  getStripeErrorMessage,
-} from "@/lib/stripe.server";
+import { type StripeEnv, createStripeClient, getStripeErrorMessage } from "@/lib/stripe.server";
 
 type PaymentIntentResult = { clientSecret: string; paymentIntentId: string } | { error: string };
 
@@ -37,9 +34,15 @@ export const createPaymentLink = createServerFn({ method: "POST" })
     const { convertAmount, payoutCurrencyForCountry, getRate } = await import("./fx.functions");
     const { data: profile } = await supabase
       .from("profiles")
-      .select("payout_currency, country_iso")
+      .select("payout_currency, country_iso, kyc_status, first_name, last_name")
       .eq("id", userId)
       .maybeSingle();
+
+    if ((profile?.kyc_status as string | null) !== "APPROVED")
+      throw new Error(
+        "Vérification d'identité requise : complétez votre KYC pour créer des liens de paiement.",
+      );
+
     const payoutCurrency =
       (profile?.payout_currency as string | null) ||
       payoutCurrencyForCountry(profile?.country_iso as string | null);
@@ -55,8 +58,9 @@ export const createPaymentLink = createServerFn({ method: "POST" })
         throw new Error("Devise non supportée pour le moment (taux indisponible).");
       }
     }
-    const { data: todayTotalRow, error: totalErr } = await supabase
-      .rpc("daily_payment_total_eur", { _user_id: userId });
+    const { data: todayTotalRow, error: totalErr } = await supabase.rpc("daily_payment_total_eur", {
+      _user_id: userId,
+    });
     if (totalErr) throw new Error(totalErr.message);
     const todayTotalEur = Number(todayTotalRow ?? 0);
     if (todayTotalEur + amountInEur > DAILY_LIMIT_EUR) {
@@ -98,6 +102,42 @@ export const createPaymentLink = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error || !row) throw new Error(error?.message || "Création impossible");
+
+    // Notify every admin (email via Resend + in-app). Never blocks the user.
+    try {
+      const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || null;
+      const email = (context.claims as { email?: string } | null)?.email ?? null;
+      const origin = process.env.PUBLIC_APP_URL || new URL(getRequest().url).origin;
+
+      const { sendAdminEmails } = await import("@/lib/email/admin-notify.server");
+      await sendAdminEmails({
+        templateName: "admin-payment-link-created",
+        idempotencyPrefix: `admin-plink-${row.id}`,
+        templateData: {
+          userName: fullName,
+          userEmail: email,
+          amount: data.amount,
+          currency: invoiceCurrency,
+          description: data.description.trim(),
+          localAmount,
+          localCurrency: payoutCurrency,
+          linkUrl: `${origin}/pay/${row.id}`,
+        },
+      });
+
+      const { pushAdminNotification } = await import("@/lib/notifications.server");
+      await pushAdminNotification({
+        kind: "ADMIN_ALERT",
+        title: `Nouveau lien de paiement · ${data.amount.toFixed(2)} ${invoiceCurrency}`,
+        body: fullName
+          ? `${fullName} a créé un lien de paiement (${data.description.trim()}).`
+          : `Un utilisateur a créé un lien de paiement (${data.description.trim()}).`,
+        metadata: { paymentLinkId: row.id },
+      });
+    } catch (e) {
+      console.error("[payments] admin notify failed", e);
+    }
+
     return { id: row.id as string };
   });
 
@@ -106,19 +146,14 @@ export const createPaymentLink = createServerFn({ method: "POST" })
  * Returns the client secret so the browser can render PaymentElement directly.
  */
 export const createPaymentIntent = createServerFn({ method: "POST" })
-  .inputValidator(
-    (data: { paymentLinkId: string; environment: StripeEnv }) => {
-      if (!/^[0-9a-f-]{36}$/i.test(data.paymentLinkId)) throw new Error("Lien invalide");
-      return data;
-    },
-  )
+  .inputValidator((data: { paymentLinkId: string; environment: StripeEnv }) => {
+    if (!/^[0-9a-f-]{36}$/i.test(data.paymentLinkId)) throw new Error("Lien invalide");
+    return data;
+  })
   .handler(async ({ data }): Promise<PaymentIntentResult> => {
     try {
       const { createClient } = await import("@supabase/supabase-js");
-      const admin = createClient(
-        process.env.SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      );
+      const admin = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
       const { data: link, error } = await admin
         .from("payment_links")
@@ -167,16 +202,14 @@ export const markPaymentLinkPaid = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const { createClient } = await import("@supabase/supabase-js");
-    const admin = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    );
+    const admin = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
     // Verify with Stripe before trusting the client
     const stripe = createStripeClient(data.environment);
     const intent = await stripe.paymentIntents.retrieve(data.paymentIntentId);
     if (intent.status !== "succeeded") throw new Error("Le paiement n'est pas encore confirmé.");
-    if (intent.metadata?.payment_link_id !== data.paymentLinkId) throw new Error("Référence invalide.");
+    if (intent.metadata?.payment_link_id !== data.paymentLinkId)
+      throw new Error("Référence invalide.");
 
     const { data: link } = await admin
       .from("payment_links")
@@ -232,10 +265,7 @@ export const getPublicPaymentLink = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }) => {
     const { createClient } = await import("@supabase/supabase-js");
-    const admin = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    );
+    const admin = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
     const { data: row, error } = await admin
       .from("payment_links")
       .select("id, amount, currency, description, status")

@@ -27,6 +27,13 @@ function rethrowTwilio(error: unknown): never {
       "Identifiants Twilio invalides. Vérifiez TWILIO_ACCOUNT_SID et TWILIO_AUTH_TOKEN dans vos variables d'environnement.",
     );
   }
+  if (e?.code === 21649) {
+    throw new Error(
+      "Le Regulatory Bundle Twilio (TWILIO_BUNDLE_SID) ne correspond pas au type de ce numéro. " +
+        "Pour la France, le bundle doit être approuvé pour « France · Numéro local · Business » " +
+        "(console.twilio.com → Phone Numbers → Regulatory Compliance → Bundles).",
+    );
+  }
   throw error;
 }
 
@@ -41,7 +48,8 @@ export async function searchAvailableNumbers(
   if (country.requiresBundle && !hasBundleSid) {
     throw new Error(
       `Les numéros ${country.name} nécessitent un Regulatory Bundle Twilio (TWILIO_BUNDLE_SID). ` +
-      `Configurez-le sur console.twilio.com → Phone Numbers → Regulatory Compliance, ou choisissez un numéro États-Unis / Canada.`,
+      `Créez un bundle « ${country.name} · Numéro local · Business » sur console.twilio.com → ` +
+      `Phone Numbers → Regulatory Compliance, ou choisissez un numéro États-Unis / Canada.`,
     );
   }
 
@@ -52,6 +60,8 @@ export async function searchAvailableNumbers(
 
   console.info(`[twilio] searchAvailableNumbers country=${countryIso}`, params);
   try {
+    // Always search Twilio's *Local* inventory — never National — so the
+    // regulation type stays "Local · Business" (matching TWILIO_BUNDLE_SID).
     const numbers = await client
       .availablePhoneNumbers(countryIso)
       .local.list(params as any);

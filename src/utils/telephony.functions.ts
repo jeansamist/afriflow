@@ -65,7 +65,6 @@ export const allocatePhoneNumber = createServerFn({ method: "POST" })
 
     const country = data.country ?? profile?.country_iso ?? "CM";
 
-
     // Try a few times in case of unique collision
     let e164 = "";
     let inserted: any = null;
@@ -73,7 +72,13 @@ export const allocatePhoneNumber = createServerFn({ method: "POST" })
       e164 = generateE164(country);
       const { data: row, error } = await supabase
         .from("phone_allocations")
-        .insert({ user_id: userId, e164, country_iso: country, provider: "SIMULATED", status: "ACTIVE" })
+        .insert({
+          user_id: userId,
+          e164,
+          country_iso: country,
+          provider: "SIMULATED",
+          status: "ACTIVE",
+        })
         .select()
         .single();
       if (!error) {
@@ -94,11 +99,15 @@ export const allocatePhoneNumber = createServerFn({ method: "POST" })
         userId,
         kind: "NUMBER_ACTIVATED",
         title: `Numéro activé · ${e164}`,
-        body: inTrial ? "Essai 7 jours · 10 minutes offertes." : "Votre cabine est prête à appeler.",
+        body: inTrial
+          ? "Essai 7 jours · 10 minutes offertes."
+          : "Votre cabine est prête à appeler.",
         linkTo: "/phone",
         metadata: { country, e164 },
       });
-    } catch (e) { console.error("[notifications] number", e); }
+    } catch (e) {
+      console.error("[notifications] number", e);
+    }
 
     return { allocation: inserted, alreadyAllocated: false };
   });
@@ -107,12 +116,20 @@ export const getMyPhoneState = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const [{ data: allocation }, { data: logs }] = await Promise.all([
+    const [{ data: allocation }, { data: reserved }, { data: logs }] = await Promise.all([
       supabase
         .from("phone_allocations")
         .select("*")
         .eq("user_id", userId)
         .eq("status", "ACTIVE")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("phone_allocations")
+        .select("e164, country_iso")
+        .eq("user_id", userId)
+        .eq("status", "RESERVED")
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
@@ -123,7 +140,11 @@ export const getMyPhoneState = createServerFn({ method: "GET" })
         .order("created_at", { ascending: false })
         .limit(30),
     ]);
-    return { allocation, logs: logs ?? [] };
+    return {
+      allocation,
+      reserved: (reserved as { e164: string; country_iso: string } | null) ?? null,
+      logs: logs ?? [],
+    };
   });
 
 const callSchema = z.object({
@@ -141,6 +162,18 @@ export const recordSimulatedCall = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
+    if (data.direction === "OUTBOUND") {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("kyc_status")
+        .eq("id", userId)
+        .maybeSingle();
+      if ((profile?.kyc_status as string | null) !== "APPROVED")
+        throw new Error(
+          "Vérification d'identité requise : complétez votre KYC pour passer des appels.",
+        );
+    }
+
     const { data: allocation } = await supabase
       .from("phone_allocations")
       .select("e164")
@@ -153,7 +186,8 @@ export const recordSimulatedCall = createServerFn({ method: "POST" })
     const to = data.direction === "OUTBOUND" ? data.to : allocation.e164;
 
     // Mock pricing: 0.02 credits per second, only when connected
-    const cost = data.outcome === "completed" ? Number((data.durationSeconds * 0.02).toFixed(2)) : 0;
+    const cost =
+      data.outcome === "completed" ? Number((data.durationSeconds * 0.02).toFixed(2)) : 0;
 
     const { data: log, error } = await supabase
       .from("call_logs")
@@ -174,4 +208,3 @@ export const recordSimulatedCall = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { log };
   });
-

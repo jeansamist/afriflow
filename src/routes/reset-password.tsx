@@ -14,18 +14,25 @@ export const Route = createFileRoute("/reset-password")({
 
 function ResetPassword() {
   const navigate = useNavigate();
-  const [ready, setReady] = useState(false);
+  const [status, setStatus] = useState<"checking" | "ready" | "invalid">("checking");
+  const ready = status === "ready";
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Supabase puts recovery token in URL hash; getSession picks it up after listener fires.
+    // Supabase puts the recovery token — or an error (expired/used link) — in the URL hash.
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    if (hash.get("error")) {
+      setStatus("invalid");
+      return;
+    }
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") setReady(true);
+      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") setStatus("ready");
     });
+    // getSession resolves after the hash token (if any) has been consumed.
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setReady(true);
+      setStatus((s) => (s === "ready" || data.session ? "ready" : "invalid"));
     });
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -45,42 +52,65 @@ function ResetPassword() {
     <div className="min-h-screen bg-hero">
       <div className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-6 py-10">
         <div className="w-full max-w-md">
-          <Link to="/auth" search={{ mode: "signin" }} className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+          <Link
+            to="/auth"
+            search={{ mode: "signin" }}
+            className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+          >
             <ArrowLeft className="h-4 w-4" /> Retour
           </Link>
           <div className="rounded-2xl border border-border bg-surface p-8 shadow-elevated">
-            <h1 className="text-xl font-semibold">Définir un nouveau mot de passe</h1>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {ready ? "Choisissez un mot de passe robuste, au moins 8 caractères." : "Validation du lien de récupération…"}
-            </p>
-            <form onSubmit={submit} className="mt-6 space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="pw" className="text-xs font-medium text-muted-foreground">Nouveau mot de passe</Label>
-                <div className="relative">
-                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="pw"
-                    type={show ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="pl-9 pr-10"
-                    autoComplete="new-password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShow((s) => !s)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    aria-label={show ? "Masquer" : "Afficher"}
-                  >
-                    {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-              <Button type="submit" className="w-full shadow-glow" disabled={loading || !ready}>
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Mettre à jour"}
-              </Button>
-            </form>
+            {status === "invalid" ? (
+              <>
+                <h1 className="text-xl font-semibold">Lien invalide ou expiré</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Ce lien de réinitialisation n'est plus valide. Demandez-en un nouveau depuis la
+                  page de connexion via « Mot de passe oublié ? ».
+                </p>
+                <Link to="/auth" search={{ mode: "signin" }} className="mt-6 block">
+                  <Button className="w-full shadow-glow">Retour à la connexion</Button>
+                </Link>
+              </>
+            ) : (
+              <>
+                <h1 className="text-xl font-semibold">Définir un nouveau mot de passe</h1>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {ready
+                    ? "Choisissez un mot de passe robuste, au moins 8 caractères."
+                    : "Validation du lien de récupération…"}
+                </p>
+                <form onSubmit={submit} className="mt-6 space-y-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pw" className="text-xs font-medium text-muted-foreground">
+                      Nouveau mot de passe
+                    </Label>
+                    <div className="relative">
+                      <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        id="pw"
+                        type={show ? "text" : "password"}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="pl-9 pr-10"
+                        autoComplete="new-password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShow((s) => !s)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        aria-label={show ? "Masquer" : "Afficher"}
+                      >
+                        {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <Button type="submit" className="w-full shadow-glow" disabled={loading || !ready}>
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Mettre à jour"}
+                  </Button>
+                </form>
+              </>
+            )}
           </div>
         </div>
       </div>

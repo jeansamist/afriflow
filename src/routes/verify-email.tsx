@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { z } from "zod";
 import { MailCheck, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { resendConfirmationEmail } from "@/utils/auth.functions";
 import { toast } from "sonner";
 import { useState } from "react";
 
@@ -13,7 +13,11 @@ export const Route = createFileRoute("/verify-email")({
   head: () => ({
     meta: [
       { title: "Vérifiez votre email · AfriFlow" },
-      { name: "description", content: "Un lien de confirmation vous a été envoyé. Vérifiez votre boîte mail pour activer votre compte." },
+      {
+        name: "description",
+        content:
+          "Un lien de confirmation vous a été envoyé. Vérifiez votre boîte mail pour activer votre compte.",
+      },
     ],
   }),
   component: VerifyEmail,
@@ -26,17 +30,31 @@ function VerifyEmail() {
   const resend = async () => {
     if (!email) return;
     setSending(true);
-    const { error } = await supabase.auth.resend({ type: "signup", email });
-    setSending(false);
-    if (error) toast.error(error.message);
-    else toast.success("Email renvoyé !");
+    try {
+      const res = await resendConfirmationEmail({ data: { email } });
+      if (!res.ok) {
+        toast.error(
+          res.code === "cooldown"
+            ? "Un email vient d'être envoyé. Patientez une minute avant de réessayer."
+            : "L'email n'a pas pu être envoyé. Réessayez.",
+        );
+        return;
+      }
+      toast.success("Email renvoyé !");
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-hero">
       <div className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-6 py-10">
         <div className="w-full max-w-md">
-          <Link to="/auth" search={{ mode: "signin" }} className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+          <Link
+            to="/auth"
+            search={{ mode: "signin" }}
+            className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+          >
             <ArrowLeft className="h-4 w-4" /> Retour à la connexion
           </Link>
           <div className="rounded-2xl border border-border bg-surface p-8 text-center shadow-elevated">
@@ -60,11 +78,18 @@ function VerifyEmail() {
             </div>
 
             <div className="mt-6 flex flex-col gap-2">
-              <Button onClick={resend} disabled={!email || sending} variant="outline" className="w-full">
+              <Button
+                onClick={resend}
+                disabled={!email || sending}
+                variant="outline"
+                className="w-full"
+              >
                 {sending ? "Envoi..." : "Renvoyer le lien"}
               </Button>
               <Link to="/auth" search={{ mode: "signin" }}>
-                <Button variant="ghost" className="w-full">J'ai déjà confirmé, me connecter</Button>
+                <Button variant="ghost" className="w-full">
+                  J'ai déjà confirmé, me connecter
+                </Button>
               </Link>
             </div>
           </div>

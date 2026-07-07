@@ -55,7 +55,6 @@ const momoBrands = [
 
 const countries = [
   { flag: "🇫🇷", label: "France", code: "+33" },
-  { flag: "🇧🇪", label: "Belgique", code: "+32" },
   { flag: "🇺🇸", label: "États-Unis", code: "+1" },
   { flag: "🇨🇦", label: "Canada", code: "+1" },
 ];
@@ -65,7 +64,7 @@ const steps = [
     n: "1",
     icon: PhoneCall,
     title: "Choisissez votre numéro pro",
-    desc: "France, Belgique, Canada ou États-Unis. Votre numéro est prêt en quelques minutes, depuis votre navigateur.",
+    desc: "France, Canada ou États-Unis. Votre numéro est prêt en quelques minutes, depuis votre navigateur.",
     accent: "primary",
   },
   {
@@ -187,17 +186,32 @@ function Landing() {
             <span className="font-display text-lg font-bold tracking-tight">AfriFlow</span>
           </Link>
           <nav className="hidden gap-8 text-sm text-muted-foreground md:flex">
-            <a href="#how" className="transition-colors hover:text-foreground">Comment ça marche</a>
-            <a href="#features" className="transition-colors hover:text-foreground">Fonctionnalités</a>
-            <a href="#testimonials" className="transition-colors hover:text-foreground">Témoignages</a>
-            <a href="#faq" className="transition-colors hover:text-foreground">FAQ</a>
+            <a href="#how" className="transition-colors hover:text-foreground">
+              Comment ça marche
+            </a>
+            <a href="#features" className="transition-colors hover:text-foreground">
+              Fonctionnalités
+            </a>
+            <a href="#pricing" className="transition-colors hover:text-foreground">
+              Tarifs
+            </a>
+            <a href="#testimonials" className="transition-colors hover:text-foreground">
+              Témoignages
+            </a>
+            <a href="#faq" className="transition-colors hover:text-foreground">
+              FAQ
+            </a>
           </nav>
           <div className="flex items-center gap-2">
             <Link to="/auth" search={{ mode: "signin" }}>
-              <Button variant="ghost" size="sm">Se connecter</Button>
+              <Button variant="ghost" size="sm">
+                Se connecter
+              </Button>
             </Link>
             <Link to="/auth" search={{ mode: "signup" }}>
-              <Button size="sm" className="shadow-glow">Commencer gratuitement</Button>
+              <Button size="sm" className="shadow-glow">
+                Commencer gratuitement
+              </Button>
             </Link>
           </div>
         </div>
@@ -220,8 +234,8 @@ function Landing() {
               <span className="text-gradient-primary">Soyez payé chez vous.</span>
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
-              Un numéro pro international, vos clients organisés, et vos paiements directement sur votre
-              Mobile Money. Tout depuis un seul endroit, simple comme un message WhatsApp.
+              Un numéro pro international, vos clients organisés, et vos paiements directement sur
+              votre Mobile Money. Tout depuis un seul endroit, simple comme un message WhatsApp.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to="/auth" search={{ mode: "signup" }}>
@@ -230,13 +244,21 @@ function Landing() {
                 </Button>
               </Link>
               <a href="#how">
-                <Button size="lg" variant="outline">Voir comment ça marche</Button>
+                <Button size="lg" variant="outline">
+                  Voir comment ça marche
+                </Button>
               </a>
             </div>
             <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-success" /> Numéro offert</span>
-              <span className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-success" /> 10 minutes d’appel incluses</span>
-              <span className="inline-flex items-center gap-1.5"><Check className="h-4 w-4 text-success" /> Sans carte bancaire</span>
+              <span className="inline-flex items-center gap-1.5">
+                <Check className="h-4 w-4 text-success" /> Numéro offert
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Check className="h-4 w-4 text-success" /> 10 minutes d’appel incluses
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Check className="h-4 w-4 text-success" /> Sans carte bancaire
+              </span>
             </div>
           </div>
 
@@ -257,7 +279,9 @@ function Landing() {
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">Votre ligne pro 🇫🇷</div>
-                    <div className="font-display text-lg font-semibold tracking-tight">+33 1 76 36 04 88</div>
+                    <div className="font-display text-lg font-semibold tracking-tight">
+                      +33 1 76 36 04 88
+                    </div>
                   </div>
                 </div>
                 <div className="mt-5 space-y-2.5">
@@ -266,7 +290,10 @@ function Landing() {
                     { name: "Lukas — Berlin", t: "Hier", paid: false },
                     { name: "Marc — Montréal", t: "Lun.", paid: true },
                   ].map((c) => (
-                    <div key={c.name} className="flex items-center justify-between rounded-xl border border-border bg-background px-3 py-2.5">
+                    <div
+                      key={c.name}
+                      className="flex items-center justify-between rounded-xl border border-border bg-background px-3 py-2.5"
+                    >
                       <div className="flex items-center gap-2.5">
                         <div className="grid h-8 w-8 place-items-center rounded-full bg-accent text-xs font-semibold">
                           {c.name[0]}
@@ -276,7 +303,9 @@ function Landing() {
                           <div className="text-xs text-muted-foreground">{c.t}</div>
                         </div>
                       </div>
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${c.paid ? "bg-success/15 text-success" : "bg-sun/20 text-foreground/70"}`}>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${c.paid ? "bg-success/15 text-success" : "bg-sun/20 text-foreground/70"}`}
+                      >
                         {c.paid ? "Payé" : "En attente"}
                       </span>
                     </div>
@@ -294,7 +323,9 @@ function Landing() {
                   </div>
                   <div className="min-w-0">
                     <div className="text-sm font-semibold">Paiement reçu</div>
-                    <div className="truncate text-xs text-muted-foreground">+ 25 000 FCFA · Orange Money</div>
+                    <div className="truncate text-xs text-muted-foreground">
+                      + 25 000 FCFA · Orange Money
+                    </div>
                   </div>
                 </div>
                 <div className="mt-3 flex items-center gap-1.5 text-[10px] text-muted-foreground">
@@ -338,7 +369,9 @@ function Landing() {
       {/* How it works — Notion style: big, friendly, simple */}
       <section id="how" className="relative mx-auto max-w-6xl px-6 py-24">
         <div className="max-w-2xl">
-          <p className="text-sm font-semibold uppercase tracking-widest text-primary">Comment ça marche</p>
+          <p className="text-sm font-semibold uppercase tracking-widest text-primary">
+            Comment ça marche
+          </p>
           <h2 className="mt-3 text-4xl font-bold tracking-tight md:text-5xl">
             Trois étapes. C’est tout.
           </h2>
@@ -362,8 +395,8 @@ function Landing() {
                     s.accent === "primary"
                       ? "bg-primary/15 text-primary"
                       : s.accent === "teal"
-                      ? "bg-teal/15 text-teal"
-                      : "bg-sun/20 text-foreground"
+                        ? "bg-teal/15 text-teal"
+                        : "bg-sun/20 text-foreground"
                   }`}
                 >
                   <s.icon className="h-6 w-6" />
@@ -380,12 +413,15 @@ function Landing() {
       <section id="features" className="border-y border-border/60 bg-surface-warm/60">
         <div className="mx-auto max-w-6xl px-6 py-24">
           <div className="max-w-2xl">
-            <p className="text-sm font-semibold uppercase tracking-widest text-primary">Tout au même endroit</p>
+            <p className="text-sm font-semibold uppercase tracking-widest text-primary">
+              Tout au même endroit
+            </p>
             <h2 className="mt-3 text-4xl font-bold tracking-tight md:text-5xl">
               Votre activité internationale, simplifiée.
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              Un numéro pro. Vos clients organisés. Vos paiements reçus. Sans jargon, sans complications.
+              Un numéro pro. Vos clients organisés. Vos paiements reçus. Sans jargon, sans
+              complications.
             </p>
           </div>
 
@@ -401,14 +437,17 @@ function Landing() {
                   Recevez et passez des appels comme un local.
                 </h3>
                 <p className="mt-3 text-muted-foreground">
-                  Choisissez un numéro en France, Belgique, Canada ou États-Unis. Vos clients vous appellent
+                  Choisissez un numéro en France, Canada ou États-Unis. Vos clients vous appellent
                   sans frais — vous répondez depuis votre navigateur.
                 </p>
               </div>
               <div className="mx-8 mb-8 rounded-2xl bg-gradient-to-br from-background to-surface-warm p-5">
                 <div className="grid grid-cols-2 gap-3">
                   {countries.map((c) => (
-                    <div key={c.label} className="flex items-center gap-2 rounded-xl border border-border bg-surface-elevated px-3 py-2.5 text-sm shadow-soft">
+                    <div
+                      key={c.label}
+                      className="flex items-center gap-2 rounded-xl border border-border bg-surface-elevated px-3 py-2.5 text-sm shadow-soft"
+                    >
                       <span className="text-lg">{c.flag}</span>
                       <div className="min-w-0">
                         <div className="font-semibold">{c.label}</div>
@@ -430,8 +469,8 @@ function Landing() {
                   Envoyez un lien. Soyez payé. C’est tout.
                 </h3>
                 <p className="mt-3 text-muted-foreground">
-                  Créez un lien de paiement, partagez-le par WhatsApp ou email. Votre client paie par carte
-                  et vous recevez l’argent sur votre Mobile Money.
+                  Créez un lien de paiement, partagez-le par WhatsApp ou email. Votre client paie
+                  par carte et vous recevez l’argent sur votre Mobile Money.
                 </p>
               </div>
               <div className="mx-8 mb-8 rounded-2xl bg-gradient-to-br from-background to-surface-warm p-5">
@@ -469,12 +508,12 @@ function Landing() {
                 f.tone === "blue"
                   ? "bg-primary/12 text-primary"
                   : f.tone === "teal"
-                  ? "bg-teal/15 text-teal"
-                  : f.tone === "sun"
-                  ? "bg-sun/25 text-foreground"
-                  : f.tone === "rose"
-                  ? "bg-destructive/10 text-destructive"
-                  : "bg-accent text-accent-foreground";
+                    ? "bg-teal/15 text-teal"
+                    : f.tone === "sun"
+                      ? "bg-sun/25 text-foreground"
+                      : f.tone === "rose"
+                        ? "bg-destructive/10 text-destructive"
+                        : "bg-accent text-accent-foreground";
               return (
                 <div
                   key={f.title}
@@ -496,13 +535,15 @@ function Landing() {
       <section className="mx-auto max-w-6xl px-6 py-24">
         <div className="grid items-center gap-12 md:grid-cols-2">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-widest text-teal">Mobile Money</p>
+            <p className="text-sm font-semibold uppercase tracking-widest text-teal">
+              Mobile Money
+            </p>
             <h2 className="mt-3 text-4xl font-bold tracking-tight md:text-5xl">
               Votre argent arrive là où vous le dépensez déjà.
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              Plus besoin de compte bancaire à l’étranger ni de virement international. Choisissez votre
-              opérateur et recevez vos paiements en monnaie locale, sous 1 à 2 jours.
+              Plus besoin de compte bancaire à l’étranger ni de virement international. Choisissez
+              votre opérateur et recevez vos paiements en monnaie locale, sous 1 à 2 jours.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               {momoBrands.map((m) => (
@@ -510,10 +551,7 @@ function Landing() {
                   key={m.name}
                   className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-elevated px-4 py-2 text-sm font-semibold shadow-soft"
                 >
-                  <span
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: m.color }}
-                  />
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: m.color }} />
                   {m.name}
                 </span>
               ))}
@@ -534,7 +572,10 @@ function Landing() {
                     { who: "Lukas — Berlin", amt: "+ 49 000", note: "75 €" },
                     { who: "Marc — Montréal", amt: "+ 65 200", note: "130 CAD" },
                   ].map((r) => (
-                    <div key={r.who} className="flex items-center justify-between rounded-xl bg-background px-3 py-2.5">
+                    <div
+                      key={r.who}
+                      className="flex items-center justify-between rounded-xl bg-background px-3 py-2.5"
+                    >
                       <div className="text-sm">
                         <div className="font-medium">{r.who}</div>
                         <div className="text-xs text-muted-foreground">{r.note}</div>
@@ -557,7 +598,9 @@ function Landing() {
         <div className="mx-auto max-w-6xl px-6 py-24">
           <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
             <div className="max-w-2xl">
-              <p className="text-sm font-semibold uppercase tracking-widest text-primary">Ils l’utilisent déjà</p>
+              <p className="text-sm font-semibold uppercase tracking-widest text-primary">
+                Ils l’utilisent déjà
+              </p>
               <h2 className="mt-3 text-4xl font-bold tracking-tight md:text-5xl">
                 Des freelances comme vous, partout en Afrique.
               </h2>
@@ -602,13 +645,114 @@ function Landing() {
         </div>
       </section>
 
-      {/* Trial banner */}
-      <section className="mx-auto max-w-6xl px-6 py-24">
-        <div className="grid gap-6 rounded-3xl border border-border bg-surface-warm p-8 shadow-soft md:grid-cols-3 md:p-10">
+      {/* Pricing */}
+      <section id="pricing" className="mx-auto max-w-6xl px-6 py-24">
+        <div className="max-w-2xl">
+          <p className="text-sm font-semibold uppercase tracking-widest text-primary">Tarifs</p>
+          <h2 className="mt-3 text-4xl font-bold tracking-tight md:text-5xl">
+            Un prix simple. Pas de surprise.
+          </h2>
+          <p className="mt-4 text-lg text-muted-foreground">
+            Commencez gratuitement, passez Pro quand vos appels décollent. Les frais sur vos
+            paiements sont affichés avant chaque transaction.
+          </p>
+        </div>
+
+        <div className="mt-14 grid gap-6 md:grid-cols-2">
+          {/* Découverte */}
+          <div className="flex flex-col rounded-3xl border border-border bg-surface-elevated p-8 shadow-soft">
+            <div className="flex items-center gap-2.5 text-sm font-semibold text-teal">
+              <Gift className="h-4 w-4" /> Découverte
+            </div>
+            <div className="mt-4 flex items-baseline gap-2">
+              <span className="font-display text-5xl font-bold tracking-tight">0 FCFA</span>
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Pour tester AfriFlow avec vos premiers clients. Sans carte bancaire.
+            </p>
+            <ul className="mt-6 flex-1 space-y-3 text-sm">
+              {[
+                "Numéro pro offert (France, USA, Canada) · essai 7 jours",
+                "10 minutes d’appel incluses",
+                "Liens de paiement illimités (après vérification d’identité)",
+                "Paiements reçus sur votre Mobile Money",
+                "Fiches clients (CRM) illimitées",
+              ].map((f) => (
+                <li key={f} className="flex items-start gap-2.5">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                  <span className="text-foreground/90">{f}</span>
+                </li>
+              ))}
+            </ul>
+            <Link to="/auth" search={{ mode: "signup" }} className="mt-8">
+              <Button size="lg" variant="outline" className="w-full">
+                Commencer gratuitement
+              </Button>
+            </Link>
+          </div>
+
+          {/* Pro */}
+          <div className="relative flex flex-col rounded-3xl border-2 border-primary bg-surface-elevated p-8 shadow-card">
+            <span className="absolute -top-3 right-8 rounded-full bg-gradient-primary px-3 py-1 text-xs font-semibold text-primary-foreground shadow-glow">
+              Populaire
+            </span>
+            <div className="flex items-center gap-2.5 text-sm font-semibold text-primary">
+              <Sparkles className="h-4 w-4" /> Pro
+            </div>
+            <div className="mt-4 flex items-baseline gap-2">
+              <span className="font-display text-5xl font-bold tracking-tight">21 €</span>
+              <span className="text-sm font-medium text-muted-foreground">
+                / mois · ≈ 13 755 FCFA
+              </span>
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Pour appeler vos clients sans compter et garder votre numéro.
+            </p>
+            <ul className="mt-6 flex-1 space-y-3 text-sm">
+              {[
+                "Tout Découverte, plus :",
+                "150 minutes d’appels sortants incluses / mois",
+                "Minutes non utilisées conservées d’un cycle à l’autre",
+                "Votre numéro pro conservé après l’essai",
+                "Recharges de minutes dès 2 000 FCFA (50 min)",
+                "Payable par Mobile Money (Orange, MTN, Wave…)",
+              ].map((f, i) => (
+                <li key={f} className="flex items-start gap-2.5">
+                  {i === 0 ? (
+                    <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  ) : (
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                  )}
+                  <span className={i === 0 ? "font-semibold" : "text-foreground/90"}>{f}</span>
+                </li>
+              ))}
+            </ul>
+            <Link to="/auth" search={{ mode: "signup" }} className="mt-8">
+              <Button size="lg" className="w-full shadow-glow">
+                Passer Pro <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+
+        {/* Payment fees */}
+        <div className="mt-6 grid gap-6 rounded-3xl border border-border bg-surface-warm p-8 shadow-soft md:grid-cols-3 md:p-10">
           {[
-            { icon: Gift, title: "Votre numéro pro offert", desc: "Le numéro de votre choix, prêt en quelques minutes." },
-            { icon: PhoneCall, title: "10 minutes d’appel incluses", desc: "Pour appeler vos premiers clients sans engagement." },
-            { icon: Smile, title: "Sans carte bancaire", desc: "Aucune carte demandée. Vous explorez tout, librement." },
+            {
+              icon: Send,
+              title: "Zone euro · 5,5 %",
+              desc: "Par paiement reçu en EUR (France, Belgique…). Aucun frais fixe.",
+            },
+            {
+              icon: Globe2,
+              title: "USA & Canada · 4,5 %",
+              desc: "Par paiement reçu en USD ou CAD. Aucun frais fixe.",
+            },
+            {
+              icon: Wallet,
+              title: "Dépôt Mobile Money inclus",
+              desc: "Conversion en monnaie locale et dépôt sur votre Mobile Money sans frais supplémentaires.",
+            },
           ].map((b) => (
             <div key={b.title} className="flex gap-4">
               <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-surface-elevated text-primary shadow-soft">
@@ -633,7 +777,10 @@ function Landing() {
             </h2>
             <p className="mt-4 text-muted-foreground">
               Une autre question ?{" "}
-              <a href="mailto:contact@afriflow.app" className="font-medium text-primary hover:underline">
+              <a
+                href="mailto:contact@afriflow.app"
+                className="font-medium text-primary hover:underline"
+              >
                 Écrivez-nous
               </a>
               , on répond sous 24 h.
@@ -665,8 +812,8 @@ function Landing() {
               <span className="text-gradient-primary">pro international ?</span>
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
-              Obtenez votre numéro pro et vos 10 minutes d’appel offertes. Commencez aujourd’hui — vous
-              recevrez vos premiers paiements sur Mobile Money.
+              Obtenez votre numéro pro et vos 10 minutes d’appel offertes. Commencez aujourd’hui —
+              vous recevrez vos premiers paiements sur Mobile Money.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Link to="/auth" search={{ mode: "signup" }}>
@@ -675,7 +822,9 @@ function Landing() {
                 </Button>
               </Link>
               <Link to="/auth" search={{ mode: "signin" }}>
-                <Button size="lg" variant="outline">J’ai déjà un compte</Button>
+                <Button size="lg" variant="outline">
+                  J’ai déjà un compte
+                </Button>
               </Link>
             </div>
           </div>
@@ -688,12 +837,25 @@ function Landing() {
             <span className="grid h-6 w-6 place-items-center rounded-md bg-gradient-primary text-primary-foreground text-xs font-bold">
               A
             </span>
-            <span>© {new Date().getFullYear()} AfriFlow · Fait avec <Heart className="inline h-3 w-3 fill-destructive text-destructive" /> pour les freelances africains</span>
+            <span>
+              © {new Date().getFullYear()} AfriFlow · Fait avec{" "}
+              <Heart className="inline h-3 w-3 fill-destructive text-destructive" /> pour les
+              freelances africains
+            </span>
           </div>
           <div className="flex gap-6">
-            <a href="#features" className="hover:text-foreground">Fonctionnalités</a>
-            <a href="#faq" className="hover:text-foreground">FAQ</a>
-            <a href="mailto:contact@afriflow.app" className="hover:text-foreground">Contact</a>
+            <a href="#features" className="hover:text-foreground">
+              Fonctionnalités
+            </a>
+            <a href="#pricing" className="hover:text-foreground">
+              Tarifs
+            </a>
+            <a href="#faq" className="hover:text-foreground">
+              FAQ
+            </a>
+            <a href="mailto:contact@afriflow.app" className="hover:text-foreground">
+              Contact
+            </a>
           </div>
         </div>
       </footer>

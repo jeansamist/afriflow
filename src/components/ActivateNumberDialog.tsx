@@ -11,7 +11,6 @@ import { allocatePhoneNumber } from "@/utils/telephony.functions";
 
 const COUNTRIES = [
   { iso: "FR", flag: "🇫🇷", name: "France", cc: "+33", sample: "1" },
-  { iso: "BE", flag: "🇧🇪", name: "Belgique", cc: "+32", sample: "2" },
   { iso: "US", flag: "🇺🇸", name: "États-Unis", cc: "+1", sample: "415" },
   { iso: "CA", flag: "🇨🇦", name: "Canada", cc: "+1", sample: "514" },
 ] as const;

@@ -11,8 +11,8 @@ const Email = ({ firstName }: Props) => (
     <Heading style={h1}>Votre abonnement Pro a expiré</Heading>
     <Text style={p}>Bonjour {firstName || "👋"},</Text>
     <Text style={p}>
-      Votre abonnement AfriFlow Pro est arrivé à échéance. Votre numéro est temporairement
-      réservé. Renouvelez pour réactiver immédiatement vos appels sortants et vos paiements.
+      Votre abonnement AfriFlow Pro est arrivé à échéance. Votre numéro est temporairement réservé.
+      Renouvelez pour réactiver immédiatement vos appels sortants et vos paiements.
     </Text>
     <Text style={muted}>Réactivez en 1 clic via votre Mobile Money depuis le tableau de bord.</Text>
   </Layout>
