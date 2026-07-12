@@ -72,7 +72,11 @@ export async function simulatePayoutForPaymentLink(
       body: "Aucun compte Mobile Money configuré. Renseignez-le dans Facturation.",
       linkTo: "/billing",
     });
-    return { ok: false, reason: "missing_mobile_money", ...((failed && { payoutId: failed.id }) || {}) } as any;
+    return {
+      ok: false,
+      reason: "missing_mobile_money",
+      ...((failed && { payoutId: failed.id }) || {}),
+    } as any;
   }
 
   // 2.bis) KYC gating — au-delà du seuil, exiger un KYC validé.
@@ -92,19 +96,50 @@ export async function simulatePayoutForPaymentLink(
       })
       .select("id")
       .single();
-    return { ok: false, reason: "kyc_required", ...((failed && { payoutId: failed.id }) || {}) } as any;
+    return {
+      ok: false,
+      reason: "kyc_required",
+      ...((failed && { payoutId: failed.id }) || {}),
+    } as any;
   }
 
-  // 3) Fees + net amounts (5,5 % FR/BE · 4,5 % US/CA, based on invoice currency).
+  // 3) Fees + net amounts (2,00 fixes + 4 % EUR · 5 % USD/CAD, based on invoice currency).
   const gross = Number(paymentLink.amount);
   const { fee, net } = paymentFeeBreakdown(gross, paymentLink.currency);
+  if (net <= 0) {
+    const { data: failed } = await admin
+      .from("payouts")
+      .insert({
+        user_id: paymentLink.user_id,
+        payment_link_id: paymentLink.id,
+        gross_amount: gross,
+        gross_currency: paymentLink.currency,
+        fee_amount: fee,
+        net_amount: 0,
+        status: "FAILED",
+        failure_reason: "Transfert impossible : montant trop faible pour couvrir les frais.",
+      })
+      .select("id")
+      .single();
+    return {
+      ok: false,
+      reason: "amount_too_low",
+      ...((failed && { payoutId: failed.id }) || {}),
+    } as any;
+  }
   const fxRate = paymentLink.fx_rate ? Number(paymentLink.fx_rate) : null;
   const localCurrency = paymentLink.local_currency || (profile.payout_currency as string | null);
   const localAmount =
-    fxRate != null ? Math.round(net * fxRate * 100) / 100 : (paymentLink.local_amount ? Number(paymentLink.local_amount) : null);
+    fxRate != null
+      ? Math.round(net * fxRate * 100) / 100
+      : paymentLink.local_amount
+        ? Number(paymentLink.local_amount)
+        : null;
 
   // 4) Create the payout as PROCESSING.
-  const providerReference = `FW-SIM-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 1e4)
+  const providerReference = `FW-SIM-${Date.now().toString(36).toUpperCase()}-${Math.floor(
+    Math.random() * 1e4,
+  )
     .toString(36)
     .toUpperCase()}`;
 
@@ -147,7 +182,8 @@ export async function simulatePayoutForPaymentLink(
       })
       .eq("id", inserted.id);
     try {
-      const { pushNotification, pushAdminNotification } = await import("@/lib/notifications.server");
+      const { pushNotification, pushAdminNotification } =
+        await import("@/lib/notifications.server");
       await pushNotification(admin, {
         userId: paymentLink.user_id,
         kind: "PAYOUT_FAILED",
@@ -163,7 +199,9 @@ export async function simulatePayoutForPaymentLink(
         linkTo: "/admin/payouts",
         metadata: { payout_id: inserted.id },
       });
-    } catch (e) { console.error("[notifications] payout-fail", e); }
+    } catch (e) {
+      console.error("[notifications] payout-fail", e);
+    }
     return { ok: false, reason: "operator_timeout", payoutId: inserted.id } as any;
   }
 

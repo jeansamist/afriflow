@@ -124,8 +124,8 @@ const features = [
 
 const testimonials = [
   {
-    name: "Aïssatou Diop",
-    role: "Consultante UX · Dakar",
+    name: "Raïssa Nlend",
+    role: "Consultante UX · Douala",
     avatar: testimonial1,
     quote:
       "Avant, mon client à Paris mettait une semaine à me payer. Aujourd’hui, je reçois mon argent sur Wave le lendemain.",
@@ -138,8 +138,8 @@ const testimonials = [
       "Mon client canadien voulait pouvoir m’appeler sans frais. En deux minutes, j’avais un numéro pro. Ça change tout.",
   },
   {
-    name: "Mariama Bâ",
-    role: "Coach business · Bamako",
+    name: "Laura Obame",
+    role: "Coach business · Libreville",
     avatar: testimonial3,
     quote:
       "J’envoie un lien sur WhatsApp, mes clientes en Belgique paient par carte, et l’argent arrive directement sur mon Orange Money.",
@@ -611,8 +611,7 @@ function Landing() {
                   <Star key={i} className="h-4 w-4 fill-sun text-sun" />
                 ))}
               </div>
-              <span className="font-semibold">4,9 / 5</span>
-              <span className="text-muted-foreground">· 1 200+ utilisateurs</span>
+              <span className="font-semibold">4,5 / 5</span>
             </div>
           </div>
 
@@ -712,7 +711,6 @@ function Landing() {
               {[
                 "Tout Découverte, plus :",
                 "150 minutes d’appels sortants incluses / mois",
-                "Minutes non utilisées conservées d’un cycle à l’autre",
                 "Votre numéro pro conservé après l’essai",
                 "Recharges de minutes dès 2 000 FCFA (50 min)",
                 "Payable par Mobile Money (Orange, MTN, Wave…)",
@@ -740,13 +738,13 @@ function Landing() {
           {[
             {
               icon: Send,
-              title: "Zone euro · 5,5 %",
-              desc: "Par paiement reçu en EUR (France, Belgique…). Aucun frais fixe.",
+              title: "Zone euro · 2 € + 4 %",
+              desc: "2,00 € de frais de transfert + 4 % de frais de service AfriFlow par paiement reçu en EUR.",
             },
             {
               icon: Globe2,
-              title: "USA & Canada · 4,5 %",
-              desc: "Par paiement reçu en USD ou CAD. Aucun frais fixe.",
+              title: "USA & Canada · 2 $ + 5 %",
+              desc: "2,00 USD/CAD de frais de transfert + 5 % de frais de service AfriFlow par paiement reçu.",
             },
             {
               icon: Wallet,

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { type StripeEnv, createStripeClient, getStripeErrorMessage } from "@/lib/stripe.server";
+import { minimumInvoiceAmount, paymentFeeBreakdown } from "@/lib/payment-fees";
 
 type PaymentIntentResult = { clientSecret: string; paymentIntentId: string } | { error: string };
 
@@ -29,6 +30,15 @@ export const createPaymentLink = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const invoiceCurrency = data.currency.toUpperCase();
+
+    // The amount must at least cover the fees (2,00 fixes + % de service),
+    // otherwise the net to transfer would be zero or negative.
+    const feeCheck = paymentFeeBreakdown(data.amount, invoiceCurrency);
+    if (feeCheck.net <= 0) {
+      throw new Error(
+        `Transfert impossible : montant trop faible. Les frais s'élèvent à ${feeCheck.fee.toFixed(2)} ${invoiceCurrency} — saisissez au moins ${minimumInvoiceAmount(invoiceCurrency).toFixed(2)} ${invoiceCurrency}.`,
+      );
+    }
 
     // Resolve payout currency (profile override or derived from country)
     const { convertAmount, payoutCurrencyForCountry, getRate } = await import("./fx.functions");

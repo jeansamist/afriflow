@@ -18,7 +18,7 @@ import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { createPaymentLink, listPaymentLinks } from "@/utils/payments.functions";
 import { listClients } from "@/utils/crm.functions";
 import { getRate } from "@/utils/fx.functions";
-import { paymentFeeBreakdown, paymentFeeLabel } from "@/lib/payment-fees";
+import { minimumInvoiceAmount, paymentFeeBreakdown, paymentFeeRate } from "@/lib/payment-fees";
 import { getMyProfile } from "@/utils/settings.functions";
 import { Copy, Plus, ExternalLink, User, RefreshCw } from "lucide-react";
 
@@ -132,9 +132,9 @@ function PaymentsPage() {
   const breakdown = useMemo(() => {
     const amt = Number(amount);
     if (!amt || amt <= 0 || !preview) return null;
-    const { fee: feeInvoice, net: netInvoice } = paymentFeeBreakdown(amt, currency);
-    const netLocal = Math.round(netInvoice * preview.rate * 100) / 100;
-    return { feeInvoice, netInvoice, netLocal };
+    const { transferFee, serviceFee, net } = paymentFeeBreakdown(amt, currency);
+    const netLocal = Math.round(net * preview.rate * 100) / 100;
+    return { transferFee, serviceFee, netInvoice: net, netLocal, tooLow: net <= 0 };
   }, [amount, currency, preview]);
 
   const clientById = useMemo(() => Object.fromEntries(clients.map((c) => [c.id, c])), [clients]);
@@ -282,16 +282,28 @@ function PaymentsPage() {
                     />
                   )}
                   <Row
-                    label="Frais de transaction"
-                    value={`− ${breakdown.feeInvoice.toFixed(2)} ${currency}`}
-                    hint={paymentFeeLabel(currency)}
+                    label="Frais de transfert"
+                    value={`− ${breakdown.transferFee.toFixed(2)} ${currency}`}
+                  />
+                  <Row
+                    label="Frais de service AfriFlow"
+                    value={`− ${breakdown.serviceFee.toFixed(2)} ${currency}`}
+                    hint={`${(paymentFeeRate(currency) * 100).toLocaleString("fr-FR")} %`}
                   />
                   <div className="my-2 border-t border-border/60" />
-                  <Row
-                    label="Vous recevez"
-                    value={`${breakdown.netLocal.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} ${payoutCurrency}`}
-                    accent
-                  />
+                  {breakdown.tooLow ? (
+                    <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+                      <span className="font-semibold">Transfert impossible :</span> montant trop
+                      faible pour couvrir les frais. Saisissez au moins{" "}
+                      {minimumInvoiceAmount(currency).toFixed(2)} {currency}.
+                    </div>
+                  ) : (
+                    <Row
+                      label="Vous recevez"
+                      value={`${breakdown.netLocal.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} ${payoutCurrency}`}
+                      accent
+                    />
+                  )}
                   {mmNumber ? (
                     <div className="mt-2 rounded-md border border-border/60 bg-background/40 px-3 py-2 text-xs">
                       <div className="text-muted-foreground">Crédité sur votre Mobile Money</div>
@@ -332,7 +344,7 @@ function PaymentsPage() {
 
             <Button
               type="submit"
-              disabled={submitting || loading || kycStatus !== "APPROVED"}
+              disabled={submitting || loading || kycStatus !== "APPROVED" || breakdown?.tooLow}
               className="md:w-fit md:ml-auto"
             >
               <Plus className="w-4 h-4 mr-1" /> {submitting ? "..." : "Générer le lien"}
